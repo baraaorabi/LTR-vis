@@ -1,0 +1,20 @@
+outpath:
+    LTR-vis-output/
+
+samples:
+    cdna_ubc_01 : https://s3.amazonaws.com/nanopore-human-wgs/rna/fastq/UBC_Run1_20170913_1D.pass.dedup.fastq
+
+reference:
+    dna.fasta:
+        hg38: https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chromFa.tar.gz
+    cdna.fasta:
+        hg38: ftp://ftp.ensembl.org/pub/release-98/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
+    gtf:
+        hg38: ftp://ftp.ensembl.org/pub/release-98/gtf/homo_sapiens/Homo_sapiens.GRCh38.98.gtf.gz
+
+mapping_settings:
+    dna  : splice
+    cdna : map-ont
+
+genes:
+    E2F1 : E2F1
