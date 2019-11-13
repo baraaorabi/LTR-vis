@@ -26,6 +26,8 @@ rule download_ref:
         ref_type='|'.join(config['reference']),
     params:
         url=lambda wildcards : config['reference'][wildcards.ref_type][wildcards.species]
+    conda:
+        'conda.env'
     shell:
         'wget {params.url} -O {output}.gz;'
         '  zcat {output}.gz > {output};'
@@ -38,6 +40,8 @@ rule download_sample:
         sample='|'.join(config['samples']),
     params:
         url=lambda wildcards : config['samples'][wildcards.sample]
+    conda:
+        'conda.env'
     shell:
         'wget {params.url} -O {output.fastq}'
 
@@ -59,3 +63,22 @@ rule map_reads:
         32
     shell:
         'minimap2 -x {params.mapping_settings} -t {threads} {input.target} {input.reads} > {output.paf} '
+
+rule gene_reads:
+    input:
+        script = config['gene_reads'],
+        reads  = '{}/{{sample}}.fastq'.format(download_d),
+        gtf    = '{}/{{species}}.gtf'.format(download_d),
+        genome = '{}/{{species}}.dna.fasta'.format(download_d),
+        paf    = '{}/{{sample}}.{{species}}.cdna.paf'.format(download_d),
+    output:
+        gene = '{}/{{species}}.{{gene}}.fasta'.format(download_d),
+        reads  = '{}/{{sample}}.{{species}}.{{gene}}.fastq'.format(download_d),
+    wildcard_constraints:
+        sample='|'.join(config['samples']),
+        gene='|'.join(config['genes']),
+        species='|'.join(species),
+    conda:
+        'conda.env'
+    shell:
+        ''
