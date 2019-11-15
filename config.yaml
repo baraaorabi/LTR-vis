@@ -13,11 +13,13 @@ reference:
         hg38: ftp://ftp.ensembl.org/pub/release-98/gtf/homo_sapiens/Homo_sapiens.GRCh38.98.gtf.gz
 
 mapping_settings:
-    dna  : splice
-    cdna : map-ont
+    dna        : -x splice
+    cdna       : -x map-ont
+    all-vs-all : -c --splice -x ava-ont
 
 genes:
-    E2F1 : E2F1
+    E2F1  : E2F1
+    BRCA1 : BRCA1
 
 exec:
     gene_reads : scripts/get_reads_by_gene.py

@@ -18,9 +18,10 @@ rule all:
         expand('{}/{{species}}.{{ref_type}}'.format(download_d), ref_type=config['reference'], species=species),
         expand('{}/{{sample}}.fastq'.format(download_d), sample=config['samples']),
         expand('{}/{{sample}}.{{species}}.{{acids}}.paf'.format(download_d), sample=config['samples'], species=species, acids=['cdna']),
-        expand('{}/gene.fasta'.format(working_d), gene=config['genes'], species=species, acids=['cdna']),
-        expand('{}/{{sample}}.reads.fastq'.format(working_d), gene=config['genes'], sample=config['samples'], species=species, acids=['cdna']),
-        expand('{}/{{sample}}.reads.aln.tsv'.format(working_d), gene=config['genes'], sample=config['samples'], species=species, acids=['cdna']),
+        expand('{}/gene.fasta'.format(working_d), gene=config['genes'], species=species),
+        expand('{}/{{sample}}.reads.fastq'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
+        expand('{}/{{sample}}.reads.aln.tsv'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
+        expand('{}/{{sample}}.reads-to-gene.paf'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
 
 rule download_ref:
     output:
@@ -67,7 +68,7 @@ rule map_reads:
     threads:
         32
     shell:
-        'minimap2 -x {params.mapping_settings} -t {threads} {input.target} {input.reads} > {output.paf} '
+        'minimap2 {params.mapping_settings} -t {threads} {input.target} {input.reads} > {output.paf} '
 
 rule gene:
     input:
@@ -103,3 +104,20 @@ rule gene_reads:
         '{input.script} -g {wildcards.gene}  -ar {input.gtf} '
         '  -p {input.paf} -r {input.reads}'
         '  -ro {output.reads} -ao {output.alns} '
+
+rule gene_read_mapping:
+    input:
+        reads = '{}/{{sample}}.reads.fastq'.format(working_d),
+        gene  = '{}/gene.fasta'.format(working_d),
+    output:
+        paf = '{}/{{sample}}.reads-to-gene.paf'.format(working_d),
+    wildcard_constraints:
+        sample='|'.join(config['samples']),
+        gene='|'.join(config['genes']),
+        species='|'.join(species),
+    params:
+        mapping_settings = lambda wildcards: config['mapping_settings']['dna']
+    conda:
+        'conda.env'
+    shell:
+        'minimap2 {params.mapping_settings} -t {threads}  {input.gene} {input.reads} > {output.paf}'
