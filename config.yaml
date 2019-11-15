@@ -21,9 +21,11 @@ genes:
     E2F1   : E2F1
     BRCA1  : BRCA1
     BRCA2  : BRCA2
-    # PLSCR3 : PLSCR3
+    PLSCR3 : PLSCR3
 
 exec:
     gene_reads : scripts/get_reads_by_gene.py
     gene       : scripts/get_gene.py
     paf_to_json : scripts/paf_to_json.py
+    fastq_to_json : scripts/fastq_to_json.py
+    fasta_to_json : scripts/fasta_to_json.py    

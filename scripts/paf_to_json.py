@@ -83,8 +83,8 @@ def get_aln_info(paf, target):
                 if size > 15:
                     rid_to_blks[rid].append(dict(
                         type='m',
-                        pos=tpos1,
-                        length=tpos2,
+                        start=tpos1,
+                        end=tpos2,
                         orientation=ori,
                     ))
                     rid_to_blks[rid].append(dict(
@@ -100,8 +100,8 @@ def get_aln_info(paf, target):
             elif op == 'N':
                 rid_to_blks[rid].append(dict(
                     type='m',
-                    pos=tpos1,
-                    length=tpos2,
+                    start=tpos1,
+                    end=tpos2,
                     orientation=ori,
                 ))
                 tpos2 += size
@@ -116,8 +116,8 @@ def get_aln_info(paf, target):
         if tpos2 > tpos1:
             rid_to_blks[rid].append(dict(
                 type='m',
-                pos=tpos1,
-                length=tpos2,
+                start=tpos1,
+                end=tpos2,
                 orientation=ori,
             ))
         rid_to_blks[rid].append(dict(
@@ -130,15 +130,16 @@ def get_aln_info(paf, target):
             start=tend,
             end=tlen,
         ))
-    return rid_to_blks
+    return rid_to_blks,tlen
 
 def main():
     args = parse_args()
-    rid_to_blks = get_aln_info(paf=args.paf, target=args.target)
+    rid_to_blks,tlen = get_aln_info(paf=args.paf, target=args.target)
 
     data = list()
     for rid,alns in rid_to_blks.items():
         data.append(dict(
+            target_length=tlen,
             name=rid,
             data=alns
         ))
