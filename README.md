@@ -25,5 +25,5 @@ snakemake -np
 
 Run all jobs:
 ```
-snakemake --use-conda
+snakemake --use-conda [-j <number-of-threads>]
 ```
