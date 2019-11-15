@@ -1,21 +1,31 @@
 #!/usr/bin/env python3
 import argparse
-from pyfasta import Fasta
+from collections import namedtuple
 from Bio.Seq import Seq
+
+ReadAln = namedtuple('ReadAln', [
+    'query',
+    'qstart',
+    'qend',
+    'target',
+    'tstart',
+    'tend',
+    'ori',
+])
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Get reads that map to a specific gene")
-    # parser.add_argument("-p",
-    #                     "--paf",
-    #                     type=str,
-    #                     required=True,
-    #                     help="Path to PAF file")
-    # parser.add_argument("-r",
-    #                     "--reads",
-    #                     type=str,
-    #                     required=True,
-    #                     help="Path to reads FASTQ file")
+    parser.add_argument("-p",
+                        "--paf",
+                        type=str,
+                        required=True,
+                        help="Path to PAF file")
+    parser.add_argument("-r",
+                        "--reads",
+                        type=str,
+                        required=True,
+                        help="Path to reads FASTQ file")
     parser.add_argument("-g",
                         "--gene",
                         type=str,
@@ -26,21 +36,16 @@ def parse_args():
                         type=str,
                         required=True,
                         help="Path to reference annotation GTF file")
-    parser.add_argument("-gr",
-                        "--genome",
+    parser.add_argument("-ro",
+                        "--reads-out",
                         type=str,
                         required=True,
-                        help="Path to reference genome FASTA file")
-    # parser.add_argument("-ro",
-    #                     "--reads-out",
-    #                     type=str,
-    #                     required=True,
-    #                     help="Path to output reads FASTQ file")
-    # parser.add_argument("-go",
-    #                     "--gene-out",
-    #                     type=str,
-    #                     required=True,
-    #                     help="Path to output reads FASTA file")
+                        help="Path to output reads TSV file")
+    parser.add_argument("-ao",
+                        "--alns-out",
+                        type=str,
+                        required=True,
+                        help="Path to output read alignments to whole transcriptome TSV file")
     args = parser.parse_args()
     return args
 
@@ -89,29 +94,79 @@ def get_gene_info(gtf_path, gene_name):
         ginfo['transcript_ids'].append(attributes['transcript_id'])
     return ginfo
 
-def get_seq(fasta, contig, start, end, ori):
-    ref = Fasta(fasta)
-    if contig in ref:
-        seq = ref[contig][start:end]
-    elif 'chr{}'.format(contig) in ref:
-        seq = ref['chr{}'.format(contig)][start:end]
-    elif len(contig)>3 and contig[:3] == 'chr':
-        seq = ref[contig[3:]][start:end]
-    else:
-        raise Exception('Cannot find {} contig in ref ({})'.format(contig, sorted(ref.keys())) )
-    if ori == '+':
-        return
-    elif ori == '-':
-        seq = str(Seq(str(seq)).reverse_complement())
-    else:
-        raise Exception('Unexpected orientation: {}'.format(ori))
-    return seq
+def get_read_ids_from_paf(paf, ginfo):
+    read_ids = set()
+    read_alns = list()
+    targets = set()
+    targets.add(ginfo['id'])
+    for tid in ginfo['transcript_ids']:
+        targets.add(tid)
+    for line in open(paf):
+        line = line.rstrip().split('\t')
+        if not line[5].split('.')[0] in targets:
+            continue
+        if not 'tp:A:P' in line[12:]:
+            continue
+        rid = line[0]
+        read_ids.add(rid)
+
+    for line in open(paf):
+        line = line.rstrip().split('\t')
+        rid = line[0]
+        if not rid in read_ids:
+            continue
+        read_alns.append(
+            ReadAln(
+                query  = rid,
+                qstart = int(line[2]),
+                qend   = int(line[3]),
+                ori    = line[4],
+                target = line[5].split('.')[0],
+                tstart = int(line[7]),
+                tend   = int(line[8]),
+            )
+        )
+    return read_ids,read_alns
+
+def output_reads(outpath, fastq, read_ids):
+    rid_to_seq = dict()
+    flag = False
+    for idx,line in enumerate(open(fastq)):
+        if idx % 4 == 0:
+            rid = line[1:].rstrip().split()[0]
+            flag = rid in read_ids
+        if not flag:
+            continue
+        if idx % 4 == 1:
+            rid_to_seq[rid] = [line.rstrip()]
+        if idx % 4 == 3:
+            rid_to_seq[rid].append(line.rstrip())
+    assert(idx % 4 == 3)
+
+    outfile = open(outpath,'w')
+    for rid,(seq,qual) in rid_to_seq.items():
+        print('\n'.join(['@{}'.format(rid), seq, '+', qual]), file=outfile)
+    outfile.close()
+
+def output_alns_tsv(outpath, read_alns):
+    outfile = open(outpath, 'w')
+    print('\t'.join([str(f) for f in ReadAln._fields]), file=outfile)
+    for aln in read_alns:
+        print('\t'.join([str(f) for f in aln]), file=outfile)
+    outfile.close()
+
 
 def main():
     args = parse_args()
+    print('Getting {} gene info'.format(args.gene))
     ginfo = get_gene_info(gtf_path=args.gtf, gene_name=args.gene)
-    ginfo['seq'] = get_seq(fasta=args.genome, contig=ginfo['chrom'], start=ginfo['start'], end=ginfo['end'], ori=ginfo['ori'])
-    print(ginfo)
+    print('Getting read alignments from {}'.format(args.paf))
+    read_ids,read_alns = get_read_ids_from_paf(paf=args.paf, ginfo=ginfo)
+
+    print('Outputting read transcriptome alignments to {}'.format(args.alns_out))
+    output_alns_tsv(outpath=args.alns_out, read_alns=read_alns)
+    print('Outputting reads ({}) to {}'.format(args.reads, args.reads_out))
+    output_reads(outpath=args.reads_out, fastq=args.reads, read_ids=read_ids)
 
 if __name__ == "__main__":
     main()

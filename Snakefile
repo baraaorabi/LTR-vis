@@ -8,7 +8,8 @@ def get_abs_path(path):
 
 outpath = get_abs_path(config['outpath'])
 
-download_d   = '{}/downloads'.format(outpath)
+download_d = '{}/downloads'.format(outpath)
+working_d  = '{}/{{species}}-{{gene}}'.format(outpath)
 
 species = list(set(itertools.chain.from_iterable([config['reference'][x].keys() for x in config['reference']])))
 
@@ -17,6 +18,9 @@ rule all:
         expand('{}/{{species}}.{{ref_type}}'.format(download_d), ref_type=config['reference'], species=species),
         expand('{}/{{sample}}.fastq'.format(download_d), sample=config['samples']),
         expand('{}/{{sample}}.{{species}}.{{acids}}.paf'.format(download_d), sample=config['samples'], species=species, acids=['cdna']),
+        expand('{}/gene.fasta'.format(working_d), gene=config['genes'], species=species, acids=['cdna']),
+        expand('{}/{{sample}}.reads.fastq'.format(working_d), gene=config['genes'], sample=config['samples'], species=species, acids=['cdna']),
+        expand('{}/{{sample}}.reads.aln.tsv'.format(working_d), gene=config['genes'], sample=config['samples'], species=species, acids=['cdna']),
 
 rule download_ref:
     output:
@@ -31,6 +35,7 @@ rule download_ref:
     shell:
         'wget {params.url} -O {output}.gz;'
         '  zcat {output}.gz > {output};'
+        '  chmod -w {output};'
         '  rm {output}.gz'
 
 rule download_sample:
@@ -43,7 +48,7 @@ rule download_sample:
     conda:
         'conda.env'
     shell:
-        'wget {params.url} -O {output.fastq}'
+        'wget {params.url} -O {output.fastq}; chmod -w {output.fastq}'
 
 rule map_reads:
     input:
@@ -64,16 +69,30 @@ rule map_reads:
     shell:
         'minimap2 -x {params.mapping_settings} -t {threads} {input.target} {input.reads} > {output.paf} '
 
-rule gene_reads:
+rule gene:
     input:
-        script = config['gene_reads'],
-        reads  = '{}/{{sample}}.fastq'.format(download_d),
+        script = config['exec']['gene'],
         gtf    = '{}/{{species}}.gtf'.format(download_d),
         genome = '{}/{{species}}.dna.fasta'.format(download_d),
+    output:
+        gene  = '{}/gene.fasta'.format(working_d),
+    wildcard_constraints:
+        gene='|'.join(config['genes']),
+        species='|'.join(species),
+    conda:
+        'conda.env'
+    shell:
+        '{input.script} -g {wildcards.gene}  -ar {input.gtf} -gr {input.genome} -go {output.gene}'
+
+rule gene_reads:
+    input:
+        script = config['exec']['gene_reads'],
+        reads  = '{}/{{sample}}.fastq'.format(download_d),
+        gtf    = '{}/{{species}}.gtf'.format(download_d),
         paf    = '{}/{{sample}}.{{species}}.cdna.paf'.format(download_d),
     output:
-        gene = '{}/{{species}}.{{gene}}.fasta'.format(download_d),
-        reads  = '{}/{{sample}}.{{species}}.{{gene}}.fastq'.format(download_d),
+        reads = '{}/{{sample}}.reads.fastq'.format(working_d),
+        alns  = '{}/{{sample}}.reads.aln.tsv'.format(working_d),
     wildcard_constraints:
         sample='|'.join(config['samples']),
         gene='|'.join(config['genes']),
@@ -81,4 +100,6 @@ rule gene_reads:
     conda:
         'conda.env'
     shell:
-        ''
+        '{input.script} -g {wildcards.gene}  -ar {input.gtf} '
+        '  -p {input.paf} -r {input.reads}'
+        '  -ro {output.reads} -ao {output.alns} '

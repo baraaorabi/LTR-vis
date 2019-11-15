@@ -6,7 +6,7 @@ samples:
 
 reference:
     dna.fasta:
-        hg38: https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chromFa.tar.gz
+        hg38: https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz
     cdna.fasta:
         hg38: ftp://ftp.ensembl.org/pub/release-98/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
     gtf:
@@ -20,4 +20,5 @@ genes:
     E2F1 : E2F1
 
 exec:
-    gene_reads: scripts/get_reads_by_gene.py
+    gene_reads : scripts/get_reads_by_gene.py
+    gene       : scripts/get_gene.py
