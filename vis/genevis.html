@@ -9,6 +9,7 @@
     <div id="overview-container"></div><br><br>
     <div id="detail-container"></div>
 <script>
+var width = 1200;
 var allCanvases = [];
 var syncing = false;
 function syncOverview() {
@@ -16,59 +17,61 @@ function syncOverview() {
   syncing = true;
   var selection = d3.event.selection;
   allCanvases.forEach(b => d3.brushX().move(b, selection));
-  loadDetail(selection[0], selection[1]);
+  loadDetail(Math.max(selection[0]-10, 0), selection[1] - 10);
   syncing = false;
 } 
 
 d3.select(window).on("load.overview", function() {
   d3.json("alignments.json", function(reads) {
     var scale = null;
-    var svg = d3.select("#overview-container").selectAll("svg").data(reads).enter().append("svg").attr("width", 1020).attr("height", 80);
+    var svg = d3.select("#overview-container").selectAll("svg").data(reads).enter().append("svg").attr("width", (width + 50)).attr("height", 40);
     var canvas = svg.append("g");
     allCanvases.push(canvas);
-    canvas.selectAll("rect").data(function (read) {
-        scale = d3.scaleLinear().domain([0, read.target_length]).range([0,1000]); 
-        return read.data.filter(function(d) { return d.type != "i"});
-      }).enter().append("rect")
-      .attr("fill", function(d) {
-        if (d.type == "m")
-          return "green";
-        else 
-          return "gray";
-      })
-      .attr("x", function(d) { return scale(d.start) + 10; })
-      .attr("y", function(d) {
-        if (d.type == "m")
-          return 40;
-        else 
-          return 42;
-      })
+    canvas.selectAll(".del rect").data(function (read) {
+        scale = d3.scaleLinear().domain([0, read.target_length]).range([0,width]); 
+        return read.data.filter(function(d) { return d.type === "d"});
+      }).enter().append("rect").attr("class", "del")
+      .attr("fill", "gray")
+      .attr("x", function(d) { return scale(d.start) + 30; })
+      .attr("y", 28)
       .attr("width", function(d) { return scale(d.end) - scale(d.start)})
-      .attr("height", function(d) {
-        if (d.type == "m")
-          return 6;
-        else 
-          return 2;
-      });
+      .attr("height", 2);
+    canvas.selectAll(".match rect").data(function (read) {
+        return read.data.filter(function(d) { return d.type === "m"});
+      }).enter().append("rect").attr("class", "match")
+      .attr("fill", "green")
+      .attr("x", function(d) { return scale(d.start) + 30; })
+      .attr("y", 26)
+      .attr("width", function(d) { return scale(d.end) - scale(d.start)})
+      .attr("height", 6);
+    canvas.selectAll(".ins rect").data(function (read) {
+        return read.data.filter(function(d) { return d.type === "i"});
+      }).enter().append("rect").attr("class", "ins")
+      .attr("fill", "purple")
+      .attr("x", function(d) { return scale(d.pos) + 30; })
+      .attr("y", function(d) { return 26; })
+      .attr("width", function(d) { return 2; })
+      .attr("height", function(d) { return 10; });
     canvas.selectAll("ellipse").data(function (read) {
-        return read.data.filter(function(d) { return d.type == "i"});
+        return read.data.filter(function(d) { return d.type === "i"});
       }).enter().append("ellipse")
       .attr("stroke", "purple")
       .attr("fill", "white")
-      .attr("cx", function(d) { return scale(d.pos) + 10; })
-      .attr("cy", function(d) { return 31; })
+      .attr("cx", function(d) { return scale(d.pos) + 31; })
+      .attr("cy", function(d) { return 15; })
       .attr("rx", function(d) { return 8; })
       .attr("ry", function(d) { return 12; });
     canvas.selectAll("text").data(function (read) {
-        return read.data.filter(function(d) { return d.type == "i"});
+        return read.data.filter(function(d) { return d.type === "i"});
       }).enter().append("text")
       .text(function(d) {return d.length; })
       .attr("font-family", "Arial")
       .attr("font-size", "8px")
       .attr("fill", "black")
       .style("text-anchor", "middle")
-      .attr("x", function(d) { return scale(d.pos) + 10; })
-      .attr("y", function(d) { return 35; });
+      .attr("x", function(d) { return scale(d.pos) + 31; })
+      .attr("y", function(d) { return 18; });
+    
     canvas.attr("class", "brush").call(d3.brushX().on("start brush", syncOverview));
      //canvas.append("rect").attr("x", scale(650)).attr("y", 0).attr("width", scale(150)).attr("height", 80).attr("fill", "rgba(128, 128, 128, 0.5)").attr("stroke", "rgba(128, 128, 128, 0.8)");
   });
@@ -78,9 +81,9 @@ function loadDetail(min, max) {
   d3.json("gene.json", function(gene) {
     var scale = null;
     d3.select("#detail-container").select("*").remove();
-    var canvas = d3.select("#detail-container").append("svg").attr("width", 1050).attr("height", 150);
+    var canvas = d3.select("#detail-container").append("svg").attr("width", width + 50).attr("height", 150);
     canvas.selectAll("rect").data(function () {
-        scale = d3.scaleLinear().domain([0, (max - min)]).range([0,1000]); 
+        scale = d3.scaleLinear().domain([0, (max - min)]).range([0,width]); 
         return gene.seq.filter(function(d, i) { return i >= min && i < max});
       }).enter().append("rect")
       .attr("fill", function(d) {
@@ -105,6 +108,7 @@ function loadDetail(min, max) {
         return gene.seq.filter(function(d, i) { return i >= min && i < max});
       }).enter().append("text")
       .text(function(d) { 
+        if ((max - min) > (width/6)) return "";
         if (d == 0)
           return "A";
         else if (d == 1)
@@ -115,12 +119,12 @@ function loadDetail(min, max) {
           return "T";
       })
       .attr("font-family", "Arial")
-      .attr("font-size", "7px")
+      .attr("font-size", "8px")
       .attr("fill", "black")
       .style("text-anchor", "middle")
       .attr("x", function(d,i) { return scale(i) + 30 + (scale(i + 1) - scale(i))/2; })
       .attr("y", function(d) { return 10; });
-    canvas.append("g").call(d3.axisBottom().scale(d3.scaleLinear().domain([min, max]).range([0,1000]))).attr("transform", "translate(30, 95)");
+    canvas.append("g").call(d3.axisBottom().scale(d3.scaleLinear().domain([min, max]).range([0,width]))).attr("transform", "translate(30, 95)");
     canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([0, 16]).range([0,80]))).attr("transform", "translate(27, 12)");
   });
 }
