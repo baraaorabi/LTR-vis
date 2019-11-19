@@ -3,20 +3,16 @@
 <meta charset="utf-8">
 <style type="text/css">
 </style>
-<script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
-<script src="https://d3js.org/d3.v3.min.js"></script>
-<script src="https://d3js.org/d3-scale.v3.min.js"></script>
-<script src="https://d3js.org/d3-path.v1.min.js"></script>
-<script src="https://d3js.org/d3-shape.v1.min.js"></script>
+<script src="https://d3js.org/d3.v4.min.js"></script>
 </head>
 <body>
-    <div id="overview-container"></div>
+    <div id="overview-container"></div><br><br>
     <div id="detail-container"></div>
 <script>
 d3.select(window).on("load.overview", function() {
   d3.json("alignments.json", function(reads) {
     var scale = null;
-    var canvas = d3.select("#overview-container").selectAll("svg").data(reads).enter().append("svg").attr("width", 1020).attr("height", 100);
+    var canvas = d3.select("#overview-container").selectAll("svg").data(reads).enter().append("svg").attr("width", 1020).attr("height", 80);
     canvas.selectAll("rect").data(function (read) {
         scale = d3.scaleLinear().domain([0, read.target_length]).range([0,1000]); 
         return read.data.filter(function(d) { return d.type != "i"});
@@ -30,9 +26,9 @@ d3.select(window).on("load.overview", function() {
       .attr("x", function(d) { return scale(d.start) + 10; })
       .attr("y", function(d) {
         if (d.type == "m")
-          return 50;
+          return 40;
         else 
-          return 52;
+          return 42;
       })
       .attr("width", function(d) { return scale(d.end) - scale(d.start)})
       .attr("height", function(d) {
@@ -47,7 +43,7 @@ d3.select(window).on("load.overview", function() {
       .attr("stroke", "purple")
       .attr("fill", "white")
       .attr("cx", function(d) { return scale(d.pos) + 10; })
-      .attr("cy", function(d) { return 41; })
+      .attr("cy", function(d) { return 31; })
       .attr("rx", function(d) { return 8; })
       .attr("ry", function(d) { return 12; });
     canvas.selectAll("text").data(function (read) {
@@ -59,15 +55,15 @@ d3.select(window).on("load.overview", function() {
       .attr("fill", "black")
       .style("text-anchor", "middle")
       .attr("x", function(d) { return scale(d.pos) + 10; })
-      .attr("y", function(d) { return 45; });
-     canvas.append("rect").attr("x", scale(650)).attr("y", 0).attr("width", scale(150)).attr("height", 100).attr("fill", "rgba(128, 128, 128, 0.5)").attr("stroke", "rgba(128, 128, 128, 0.8)");
+      .attr("y", function(d) { return 35; });
+     canvas.append("rect").attr("x", scale(650)).attr("y", 0).attr("width", scale(150)).attr("height", 80).attr("fill", "rgba(128, 128, 128, 0.5)").attr("stroke", "rgba(128, 128, 128, 0.8)");
   });
 });
 
 d3.select(window).on("load.detail", function() {
   d3.json("gene.json", function(gene) {
     var scale = null;
-    var canvas = d3.select("#detail-container").append("svg").attr("width", 1020).attr("height", 150);
+    var canvas = d3.select("#detail-container").append("svg").attr("width", 1050).attr("height", 150);
     canvas.selectAll("rect").data(function () {
         scale = d3.scaleLinear().domain([0, 150]).range([0,1000]); 
         return gene.seq.filter(function(d, i) { return i >= 650 && i < 800});
@@ -82,14 +78,35 @@ d3.select(window).on("load.detail", function() {
         else 
           return "red";
       })
-      .attr("x", function(d,i) { return scale(i) + 10; })
+      .attr("x", function(d,i) { return scale(i) + 30; })
       .attr("y", function(d) {
-        return 0;
+        return 12;
       })
       .attr("width", function(d,i) { return scale(i + 1) - scale(i)})
       .attr("height", function(d) {
-        return 120;
+        return 80;
       });
+    canvas.selectAll("text").data(function (read) {
+        return gene.seq.filter(function(d, i) { return i >= 650 && i < 800});
+      }).enter().append("text")
+      .text(function(d) { 
+        if (d == 0)
+          return "A";
+        else if (d == 1)
+          return "C";
+        else if (d == 2)
+          return "G";
+        else 
+          return "T";
+      })
+      .attr("font-family", "Arial")
+      .attr("font-size", "7px")
+      .attr("fill", "black")
+      .style("text-anchor", "middle")
+      .attr("x", function(d,i) { return scale(i) + 33.5; })
+      .attr("y", function(d) { return 10; });
+    canvas.append("g").call(d3.axisBottom().scale(d3.scaleLinear().domain([650, 800]).range([0,1000]))).attr("transform", "translate(30, 95)");
+    canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([0, 16]).range([0,80]))).attr("transform", "translate(27, 12)");
   });
 });
 </script>
