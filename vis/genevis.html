@@ -13,12 +13,12 @@
     <div id="overview-container"></div>
     <div id="detail-container"></div>
 <script>
-d3.select(window).on("load", function() {
+d3.select(window).on("load.overview", function() {
   d3.json("alignments.json", function(reads) {
     var scale = null;
-    var canvas = d3.select("#overview-container").selectAll("svg").data(reads).enter().append("svg").attr("width", 620).attr("height", 100);
+    var canvas = d3.select("#overview-container").selectAll("svg").data(reads).enter().append("svg").attr("width", 1020).attr("height", 100);
     canvas.selectAll("rect").data(function (read) {
-        scale = d3.scaleLinear().domain([0, read.target_length]).range([0,600]); 
+        scale = d3.scaleLinear().domain([0, read.target_length]).range([0,1000]); 
         return read.data.filter(function(d) { return d.type != "i"});
       }).enter().append("rect")
       .attr("fill", function(d) {
@@ -60,6 +60,36 @@ d3.select(window).on("load", function() {
       .style("text-anchor", "middle")
       .attr("x", function(d) { return scale(d.pos) + 10; })
       .attr("y", function(d) { return 45; });
+     canvas.append("rect").attr("x", scale(650)).attr("y", 0).attr("width", scale(150)).attr("height", 100).attr("fill", "rgba(128, 128, 128, 0.5)").attr("stroke", "rgba(128, 128, 128, 0.8)");
+  });
+});
+
+d3.select(window).on("load.detail", function() {
+  d3.json("gene.json", function(gene) {
+    var scale = null;
+    var canvas = d3.select("#detail-container").append("svg").attr("width", 1020).attr("height", 150);
+    canvas.selectAll("rect").data(function () {
+        scale = d3.scaleLinear().domain([0, 150]).range([0,1000]); 
+        return gene.seq.filter(function(d, i) { return i >= 650 && i < 800});
+      }).enter().append("rect")
+      .attr("fill", function(d) {
+        if (d == 0)
+          return "green";
+        else if (d == 1)
+          return "darkblue";
+        else if (d == 2)
+          return "yellow";
+        else 
+          return "red";
+      })
+      .attr("x", function(d,i) { return scale(i) + 10; })
+      .attr("y", function(d) {
+        return 0;
+      })
+      .attr("width", function(d,i) { return scale(i + 1) - scale(i)})
+      .attr("height", function(d) {
+        return 120;
+      });
   });
 });
 </script>
