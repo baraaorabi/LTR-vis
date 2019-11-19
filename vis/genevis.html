@@ -12,12 +12,16 @@
 var width = 1200;
 var allCanvases = [];
 var syncing = false;
+
 function syncOverview() {
   if (syncing) return;
   syncing = true;
   var selection = d3.event.selection;
   allCanvases.forEach(b => d3.brushX().move(b, selection));
-  loadDetail(Math.max(selection[0]-10, 0), selection[1] - 10);
+  if (selection != null && selection[1]-selection[0] > 0)
+    loadDetail(Math.max(selection[0]-10, 0), selection[1] - 10);
+  else 
+    d3.select("#detail-container").select("*").remove();
   syncing = false;
 } 
 
