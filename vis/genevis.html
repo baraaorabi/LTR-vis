@@ -95,11 +95,15 @@ function updateDetail() {
 function loadDetail(min, max) {
   d3.json("gene.json", data => renderDetail(data, min, max));
   d3.json("reads.json", data => d3.selectAll("input")
-    .filter(function(d,i) { return this.checked; })
     .each(function(d,i) {
       var readID = this.parentNode.id;
-      read = data.find(r => r.name == readID);
-      renderDetail(read, min, max);
+      if (this.checked) {
+        read = data.find(r => r.name == readID);
+        renderDetail(read, min, max);
+      }
+      else {
+        div = d3.select("#data-" + readID).select("*").remove();
+      }
   }));
 }
 
