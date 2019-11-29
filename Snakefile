@@ -23,8 +23,6 @@ rule all:
         expand('{}/{{sample}}.reads.aln.tsv'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads-to-gene.paf'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads-to-gene.json'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
-        expand('{}/gene.json'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
-        expand('{}/{{sample}}.reads.json'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
 
 rule download_ref:
     output:
@@ -127,8 +125,10 @@ rule gene_read_mapping:
 
 rule paf_to_json:
     input:
-        script = config['exec']['paf_to_json'],
-        paf = '{}/{{sample}}.reads-to-gene.paf'.format(working_d),
+        script  = config['exec']['paf_to_json'],
+        paf     = '{}/{{sample}}.reads-to-gene.paf'.format(working_d),
+        target  = '{}/gene.fasta'.format(working_d),
+        queries = '{}/{{sample}}.reads.fastq'.format(working_d),
     output:
         json = '{}/{{sample}}.reads-to-gene.json'.format(working_d),
     wildcard_constraints:
@@ -138,7 +138,7 @@ rule paf_to_json:
     conda:
         'conda.env'
     shell:
-        '{input.script} -p {input.paf} -jo {output.json}'
+        '{input.script} -t {input.target} -q {input.queries} -p {input.paf} -jo {output.json}'
 
 rule fastq_to_json:
     input:
