@@ -225,13 +225,13 @@ def compute_cigar(queries, trgt_l):
 def output_json(trgt, trgt_l, trgt_seq, trgt_qual, queries, outpath):
     outfile = open(outpath, 'w')
     data = dict(
-        gene=dict(
+        target=dict(
             name=trgt,
             length=trgt_l,
             seq=trgt_seq,
             qual=trgt_qual
         ),
-        reads=[
+        queries=[
             dict(
                 name = k,
                 seq  = [q['seq'][q['t_to_q'][p]]  if q['t_to_q'][p] != -1 else 0 for p in range(trgt_l)],
