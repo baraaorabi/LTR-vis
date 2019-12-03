@@ -5,6 +5,12 @@
   input[type='checkbox'] {
     height:25px;
     width:15px;
+    margin:0px;
+    margin-top:16px;
+    vertical-align: top;
+  }
+  div {
+    margin:1px;
   }
 </style>
 <script src="https://d3js.org/d3.v4.min.js"></script>
@@ -25,7 +31,7 @@ function syncOverview() {
   lastSelection = selection;
   allCanvases.forEach(b => d3.brushX().move(b, selection));
   if (selection != null && selection[1]-selection[0] > 0)
-    loadDetail(Math.max(selection[0]-10, 0), selection[1] - 10);
+    loadDetail(Math.max(selection[0]-30, 0), selection[1] - 30);
   else 
     d3.select("#detail-container").select("*").remove();
   syncing = false;
@@ -37,7 +43,7 @@ d3.select(window).on("load.overview", function() {
     var scale = d3.scaleLinear().domain([0, data.target.length]).range([0,width]);
     var div = d3.select("#overview-container").selectAll("div").data(reads).enter().append("div").attr("id", function (d) { return d.name; });
     div.append("input").attr("type", "checkbox").attr("onclick", "updateDetail();");
-    var canvas = div.append("svg").attr("width", (width + 50)).attr("height", 40).append("g");
+    var canvas = div.append("svg").attr("width", (width + 50)).attr("height", 45).append("g");
     allCanvases.push(canvas);
     canvas.selectAll(".del rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "d"});
@@ -82,7 +88,15 @@ d3.select(window).on("load.overview", function() {
       .style("text-anchor", "middle")
       .attr("x", function(d) { return scale(d.start) + 31; })
       .attr("y", function(d) { return 18; });
-    
+    canvas.append("text").text(function (read) {
+      return read.name;
+    })
+    .attr("font-family", "sans-serif")
+    .attr("font-size", "10px")
+    .attr("fill", "gray")
+    .style("text-anchor", "left")
+    .attr("x", 30)
+    .attr("y", 44)
     canvas.attr("class", "brush").call(d3.brushX().on("start brush", syncOverview));
   });
 });
@@ -140,7 +154,7 @@ function renderDetail(data, min, max) {
     })
     .attr("width", function(d,i) { return xscale(i + 1) - xscale(i)})
     .attr("height", function(d,i) {
-      return yscale(data.qual[i]);
+      return Math.max(5,yscale(data.qual[min+i]));
     });
   canvas.selectAll("text").data(function (read) {
       return data.seq.filter(function(d, i) { return i >= min && i < max});
