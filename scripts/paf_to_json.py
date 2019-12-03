@@ -14,13 +14,17 @@ dna_to_int = dict(
     N=4,
 )
 
-# Aln = namedtuple('Aln', [
-#     'qstart',
-#     'qend',
-#     'tstart',
-#     'tend',
-#     'ori',
-# ])
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+VERBOSE = False
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -45,6 +49,9 @@ def parse_args():
                         type=str,
                         required=True,
                         help="Path to output JSON file")
+    parser.add_argument("--verbose", type=str2bool, nargs='?',
+                            const=True, default=False,
+                            help="Verbose")
     args = parser.parse_args()
     return args
 
@@ -222,7 +229,6 @@ def compute_cigar(queries, trgt_l):
         if size > 0:
             intervals.append(dict(orientation=q['quer_o'], type='d', size=size, start=q['trgt_e'], end=trgt_l-1))
 
-
         queries[k]['t_to_q']    = t_to_q
         queries[k]['intervals'] = intervals
 
@@ -247,6 +253,8 @@ def output_json(trgt, trgt_l, trgt_seq, trgt_qual, queries, outpath):
     )
     print(json.dumps(data, indent=4), file=outfile)
     outfile.close()
+    if not VERBOSE:
+        return
     print(''.join(str(x) for x in data['target']['seq']),data['target']['name'])
     print(''.join(chr(x+33) for x in data['target']['qual']))
     for d in data['queries']:
@@ -260,12 +268,16 @@ def output_json(trgt, trgt_l, trgt_seq, trgt_qual, queries, outpath):
 
 def main():
     args = parse_args()
+    global VERBOSE
+    VERBOSE = args.verbose
     trgt,trgt_l,queries = parse_paf(paf=args.paf)
-    print(trgt,trgt_l)
+    if VERBOSE:
+        print(trgt,trgt_l)
     trgt_seq,trgt_qual = get_target(target=args.target, target_name=trgt)
     get_queries(queries=queries, query_file=args.query)
     compute_cigar(queries=queries, trgt_l=trgt_l)
     output_json(trgt=trgt, trgt_l=trgt_l, trgt_seq=trgt_seq, trgt_qual=trgt_qual, queries=queries, outpath=args.json_out)
+
     # for q in queries:
     #     print('quer_l', queries[q]['quer_l'])
     #     print('quer_s', queries[q]['quer_s'])
