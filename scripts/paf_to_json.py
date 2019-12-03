@@ -184,7 +184,7 @@ def compute_cigar(queries, trgt_l):
             intervals.append(dict(orientation=q['quer_o'], type='i', size=q_pos, start=q['trgt_s'], end=q['trgt_s']))
         for size,op in q['cigar']:
             if op == 'M' or op == 'X':
-                if intervals[-1]['type'] != 'm':
+                if len(intervals) == 0 or intervals[-1]['type'] != 'm':
                     intervals.append(dict(orientation=q['quer_o'], type='m',size=0,start=t_pos,end=t_pos-1))
                 read_length+= size
                 for pos in range(t_pos, t_pos+size):
@@ -218,6 +218,10 @@ def compute_cigar(queries, trgt_l):
         assert (t_pos ==  q['trgt_e']),[t_pos, q['trgt_e']]
         if q['quer_e'] > 0 and q['quer_l'] - q['quer_e'] > 0:
             intervals.append(dict(orientation=q['quer_o'], type='i', size=q['quer_l'] - q['quer_e'], start=q['trgt_e'], end=q['trgt_e']))
+        size = (trgt_l) - (q['trgt_e'])
+        if size > 0:
+            intervals.append(dict(orientation=q['quer_o'], type='d', size=size, start=q['trgt_e'], end=trgt_l-1))
+
 
         queries[k]['t_to_q']    = t_to_q
         queries[k]['intervals'] = intervals
@@ -243,6 +247,16 @@ def output_json(trgt, trgt_l, trgt_seq, trgt_qual, queries, outpath):
     )
     print(json.dumps(data, indent=4), file=outfile)
     outfile.close()
+    print(''.join(str(x) for x in data['target']['seq']),data['target']['name'])
+    print(''.join(chr(x+33) for x in data['target']['qual']))
+    for d in data['queries']:
+        # if d['name'] != 'READ2':
+        #     continue
+        q = queries[d['name']]
+        print(''.join(str(x%10) if x != -1 else '!' for x in queries[d['name']]['t_to_q'] ))
+        print(''.join(str(x) for x in d['seq']),d['name'],'\n',  queries[d['name']]['cigar'], d['intervals'])
+        print(''.join(chr(x+33) for x in d['qual']))
+
 
 def main():
     args = parse_args()
