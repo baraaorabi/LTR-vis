@@ -154,7 +154,7 @@ function renderDetail(data, min, max) {
     })
     .attr("width", function(d,i) { return xscale(i + 1) - xscale(i)})
     .attr("height", function(d,i) {
-      return Math.max(5,yscale(data.qual[min+i]));
+      return yscale(data.qual[i]);
     });
   canvas.selectAll("text").data(function (read) {
       return data.seq.filter(function(d, i) { return i >= min && i < max});
