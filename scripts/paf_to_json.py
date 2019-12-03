@@ -120,7 +120,7 @@ def get_target(target, target_name):
                 qual = [ord(c)-33 for c in line.rstrip()]
                 break
     if is_fa:
-        qual = [ord(c)-33 for c in 'K'*len(seq)]
+        qual = [ord(c)-33 for c in '-'*len(seq)]
     assert(len(qual)==len(seq))
     return seq,qual
 
@@ -139,7 +139,7 @@ def get_queries(queries, query_file):
                 quer = line[1:].rstrip().split('.')[0]
             else:
                 seq = [dna_to_int[c] for c in line.rstrip().upper()]
-                qual = [ord(c)-33 for c in 'K'*len(seq)]
+                qual = [ord(c)-33 for c in '-'*len(seq)]
                 if not quer in queries:
                     queries[quer] = dict(
                         quer_l=len(seq),
