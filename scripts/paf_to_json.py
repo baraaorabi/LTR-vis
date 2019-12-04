@@ -202,7 +202,7 @@ def compute_cigar(queries, trgt_l):
                     intervals[-1]['size'] += 1
             elif op == 'I':
                 read_length+= size
-                if size > 5:
+                if size > 10:
                     intervals.append(dict(orientation=q['quer_o'], type='i',size=size,start=t_pos,end=t_pos))
                 else:
                     pass
@@ -228,7 +228,13 @@ def compute_cigar(queries, trgt_l):
         size = (trgt_l) - (q['trgt_e'])
         if size > 0:
             intervals.append(dict(orientation=q['quer_o'], type='d', size=size, start=q['trgt_e'], end=trgt_l-1))
-
+        for idx,i in enumerate(intervals):
+            if i['type']!='i':
+                continue
+            if idx == 0 or intervals[idx-1]['type'] == 'd':
+                intervals[idx]['type']='p'
+            elif idx == len(intervals)-1 or intervals[idx+1]['type'] == 'd':
+                intervals[idx]['type']='s'
         queries[k]['t_to_q']    = t_to_q
         queries[k]['intervals'] = intervals
 
