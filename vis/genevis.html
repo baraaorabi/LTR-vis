@@ -82,7 +82,7 @@ function processInterval(interval) {
       size = interval.size;
   }
   else {
-    size = end - start;
+    size = end - start + 1;
   }
 
   var newInterval = {};
@@ -214,8 +214,8 @@ function renderDetail(data, min, max) {
         return "white";
     })
     .attr("x", function(d,i) { return dataScale(i) + 30; })
-    .attr("y", function(d) {
-      return 25;
+    .attr("y", function(d,i) {
+      return 25 + 68 - yscale(filteredQual[i]);
     })
     .attr("width", function(d,i) { return dataScale(i+1) - dataScale(i)})
     .attr("height", function(d,i) {
@@ -223,6 +223,8 @@ function renderDetail(data, min, max) {
     });
   canvas.selectAll("text").data(filteredData).enter().append("text")
     .text(function(d,i) { 
+      if (filteredData.length > (width/6))
+        return ""
       if (d == 1)
         return "A";
       else if (d == 2)
@@ -248,7 +250,7 @@ function renderDetail(data, min, max) {
     .attr("x", 30)
     .attr("y", 10)
   canvas.append("g").call(d3.axisBottom().scale(xscale)).attr("transform", "translate(30, 95)");
-  canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([0, 12]).range([0,68])).tickValues([0,3,6,9,12])).attr("transform", "translate(27, 24)");
+  canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([12, 0]).range([0,68])).tickValues([0,3,6,9,12])).attr("transform", "translate(27, 24)");
 }
 </script>
 </body>
