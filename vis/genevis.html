@@ -232,7 +232,7 @@ function renderDetail(data, min, max) {
   var xscale = fc.scaleDiscontinuous(d3.scaleLinear())
     .discontinuityProvider(fc.discontinuityRange.apply(this, deletedRanges))
     .domain([min, max]).range([0,width]);  
-  var yscale = d3.scaleLinear().domain([0, 42]).range([0,68]);
+  var yscale = d3.scaleLinear().domain([0, 42]).range([0,50]);
   var div = null;
   if (d3.select("#data-" + data.name).size() > 0) {
     div = d3.select("#data-" + data.name)
@@ -242,8 +242,8 @@ function renderDetail(data, min, max) {
     div = d3.select("#detail-container").append("div").attr("id", "data-" + data.name);
   }
 
-  var canvas = div.append("svg").attr("width", width + 65).attr("height", 150);
-  canvas.selectAll("rect").data(filteredData).enter().append("rect")
+  var canvas = div.append("svg").attr("width", width + 65).attr("height", 95);
+  canvas.selectAll(".base rect").data(filteredData).enter().append("rect").attr("class", "base")
     .attr("fill", function(d,i) {
       if (d == 1)
         return "green";
@@ -258,13 +258,18 @@ function renderDetail(data, min, max) {
     })
     .attr("x", function(d,i) { return dataScale(i) + 30; })
     .attr("y", function(d,i) {
-      return 25 + 68 - yscale(filteredQual[i]);
+      return 24 + 50 - yscale(filteredQual[i]);
     })
     .attr("width", function(d,i) { return dataScale(i+1) - dataScale(i)})
     .attr("height", function(d,i) {
       return yscale(filteredQual[i]);
     });
-
+  canvas.selectAll(".cut rect").data(deletedRanges.filter(r => r[0] >= min && r[1] <= max)).enter().append("rect").attr("class", "cut")
+      .attr("fill", "black")
+      .attr("x", function(d) { return xscale(d[0]) - (xscale(d[0]) % (width/filteredData.length)) + 30 - 2; })
+      .attr("y", function(d) { return 12; })
+      .attr("width", function(d) { return 3; })
+      .attr("height", function(d) { return 75; });
   canvas.selectAll("text").data(filteredData).enter().append("text")
     .text(function(d,i) { 
       if (filteredData.length > (width/6))
@@ -292,10 +297,10 @@ function renderDetail(data, min, max) {
     .attr("fill", "black")
     .style("text-anchor", "left")
     .attr("x", 30)
-    .attr("y", 10);
+    .attr("y", 11);
 
-  canvas.append("g").call(d3.axisBottom().scale(xscale)).attr("transform", "translate(30, 95)");
-  canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([12, 0]).range([0,68])).tickValues([0,3,6,9,12])).attr("transform", "translate(27, 24)");
+  canvas.append("g").call(d3.axisBottom().scale(xscale)).attr("transform", "translate(30, 75)");
+  canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([12, 0]).range([0,50])).tickValues([0,3,6,9,12])).attr("transform", "translate(28, 24)");
 }
 </script>
 </body>
