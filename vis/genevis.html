@@ -14,15 +14,18 @@
   }
 </style>
 <script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://unpkg.com/d3fc/build/d3fc.min.js"></script>
 </head>
-<body>
+<body onkeydown="deleteRange(event);" onload="loadOverview();">
     <div style="margin:auto; width:100%" id="overview-container"></div><br>
     <div style="margin:auto; width:100%" id="detail-container"></div>
 <script>
 var width = 1400;
+var targetLength = 0;
 var allCanvases = [];
 var syncing = false;
 var lastSelection = null;
+var deletedRanges = [];
 
 function syncOverview() {
   if (syncing) return;
@@ -31,22 +34,106 @@ function syncOverview() {
   lastSelection = selection;
   allCanvases.forEach(b => d3.brushX().move(b, selection));
   if (selection != null && selection[1]-selection[0] > 0)
-    loadDetail(Math.max(selection[0]-30, 0), selection[1] - 30);
+    loadDetail(selection[0], selection[1]);
   else 
-    d3.select("#detail-container").select("*").remove();
+    d3.select("#detail-container").selectAll("*").remove();
   syncing = false;
 } 
 
-d3.select(window).on("load.overview", function() {
+function deleteRange(event) {
+  if (event.keyCode == 8 || event.keyCode == 46) {
+    if (event.shiftKey) {
+      deletedRanges = [];
+    }
+    else {
+      if (event.altKey) {
+        var currentRange = currentRangeFromSelection(lastSelection);
+        deletedRanges = deletedRanges.filter(r => r[0] >= currentRange[0] && r[1] <= currentRange[1]);
+        deletedRanges.push([0, currentRange[0]]);
+        deletedRanges.push([currentRange[1], targetLength]);
+      }
+      else {
+        var currentRange = currentRangeFromSelection(lastSelection);
+        deletedRanges = deletedRanges.filter(r => (r[1] <= currentRange[0] || r[0] >= currentRange[1]));
+        deletedRanges.push(currentRange);
+      }
+    }
+    allCanvases.forEach(b => d3.brushX().move(b, null));
+    lastSelection = null;
+    d3.select("#overview-container").selectAll("*").remove();
+    loadOverview();
+  }
+}
+
+function currentRangeFromSelection(selection) {
+  // It turns out that .invert for D3FX's discontinuous scale is broken, so here we do the manual math for that
+  // High-level summary: Compute the remaining domain size after all deleted ranges, map pixels to that space, then add offsets
+  var remainingDomainSize = targetLength - deletedRanges.map(r => r[1] - r[0]).reduce((a,b) => a + b, 0);
+  var scale = d3.scaleLinear().domain([0, remainingDomainSize]).range([0,width]);
+  var rawDomainRange = [scale.invert(Math.min(width,Math.max(0,selection[0]-30))), scale.invert(Math.min(width,Math.max(0,selection[1]-30)))];
+  var startOffset = 0;
+  var endOffset = 0;
+  deletedRanges.forEach(function (r) {
+    var rangeOffset = r[0] - deletedRanges.filter(r2 => r2[1] <= r[0]).map(r2 => r2[1] - r2[0]).reduce((a,b) => a + b, 0);
+    if (rangeOffset <= rawDomainRange[0]) {
+      startOffset += r[1] - r[0];
+    }
+    if (rangeOffset <= rawDomainRange[1]) {
+      endOffset += r[1] - r[0];
+    }
+  });
+
+  return [rawDomainRange[0] + startOffset, rawDomainRange[1] + endOffset];
+}
+
+function currentLength() {
+  var length = 0;
+  for (i = 0; i < targetLength; i++) {
+    if (!deletedRanges.some(r => r[0] <= i && r[1] >= i))
+      length++;
+  }
+  return length;
+}
+
+function processInterval(interval) {
+  var start = 0;
+  var end = 0;
+  var size = 0;
+  for (i = 0; i <= interval.end; i++) {
+      if (!deletedRanges.some(r => r[0] <= i && r[1] >= i)) {
+        end++;
+        if (i < interval.start) 
+          start++;
+      }
+    }
+  if (interval.type == "i") {
+    if (!deletedRanges.some(r => r[0] <= interval.start && r[1] >= interval.start)) 
+      size = interval.size;
+  }
+  else {
+    size = end - start;
+  }
+
+  var newInterval = {};
+  newInterval.start = start;
+  newInterval.end = end;
+  newInterval.size = size;
+  return newInterval;
+}
+
+function loadOverview() {
   d3.json("reads-to-gene.json", function(data) {
+    targetLength = data.target.length
     var reads = data.queries;
-    var scale = d3.scaleLinear().domain([0, data.target.length]).range([0,width]);
+    var length = currentLength();
+    var scale = d3.scaleLinear().domain([0, length]).range([0,width]);
     var div = d3.select("#overview-container").selectAll("div").data(reads).enter().append("div").attr("id", function (d) { return d.name; });
     div.append("input").attr("type", "checkbox").attr("onclick", "updateDetail();");
-    var canvas = div.append("svg").attr("width", (width + 50)).attr("height", 45).append("g");
+    var canvas = div.append("svg").attr("width", (width + 100)).attr("height", 45).append("g");
     allCanvases.push(canvas);
+
     canvas.selectAll(".del rect").data(function (read) {
-        return read.intervals.filter(function(d) { return d.type === "d"});
+        return read.intervals.filter(function(d) { return d.type === "d"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("rect").attr("class", "del")
       .attr("fill", "gray")
       .attr("x", function(d) { return scale(d.start) + 30; })
@@ -54,7 +141,7 @@ d3.select(window).on("load.overview", function() {
       .attr("width", function(d) { return scale(d.size)})
       .attr("height", 2);
     canvas.selectAll(".match rect").data(function (read) {
-        return read.intervals.filter(function(d) { return d.type === "m"});
+        return read.intervals.filter(function(d) { return d.type === "m"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("rect").attr("class", "match")
       .attr("fill", "green")
       .attr("x", function(d) { return scale(d.start) + 30; })
@@ -62,15 +149,26 @@ d3.select(window).on("load.overview", function() {
       .attr("width", function(d) { return scale(d.size)})
       .attr("height", 6);
     canvas.selectAll(".ins rect").data(function (read) {
-        return read.intervals.filter(function(d) { return d.type === "i"});
+        return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("rect").attr("class", "ins")
       .attr("fill", "purple")
       .attr("x", function(d) { return scale(d.start) + 30; })
       .attr("y", function(d) { return 26; })
       .attr("width", function(d) { return 1; })
       .attr("height", function(d) { return 10; });
+    canvas.selectAll(".cut rect").data(deletedRanges.map(function (r) {
+      var interval = {};
+      interval.start = r[0];
+      interval.end = r[1];
+      return processInterval(interval);
+    })).enter().append("rect").attr("class", "cut")
+      .attr("fill", "black")
+      .attr("x", function(d) { return scale(d.start) + 30; })
+      .attr("y", function(d) { return 11; })
+      .attr("width", function(d) { return 2; })
+      .attr("height", function(d) { return 30; });
     canvas.selectAll("ellipse").data(function (read) {
-        return read.intervals.filter(function(d) { return d.type === "i"});
+        return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("ellipse")
       .attr("stroke", "purple")
       .attr("fill", "white")
@@ -79,7 +177,7 @@ d3.select(window).on("load.overview", function() {
       .attr("rx", function(d) { return 10; })
       .attr("ry", function(d) { return 12; });
     canvas.selectAll("text").data(function (read) {
-        return read.intervals.filter(function(d) { return d.type === "i"});
+        return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("text")
       .text(function(d) {return d.size; })
       .attr("font-family", "sans-serif")
@@ -96,24 +194,26 @@ d3.select(window).on("load.overview", function() {
     .attr("fill", "gray")
     .style("text-anchor", "left")
     .attr("x", 30)
-    .attr("y", 44)
+    .attr("y", 44);
+
     canvas.attr("class", "brush").call(d3.brushX().on("start brush", syncOverview));
   });
-});
-
-function updateDetail() {
-  loadDetail(Math.max(lastSelection[0]-10, 0), lastSelection[1] - 10);
 }
 
-function loadDetail(min, max) {
+function updateDetail() {
+  loadDetail(lastSelection[0], lastSelection[1]);
+}
+
+function loadDetail(minSelection, maxSelection) {
   d3.json("reads-to-gene.json", function(data) {
-    renderDetail(data.target, min, max);
+    var dataRange = currentRangeFromSelection([minSelection, maxSelection])
+    renderDetail(data.target, dataRange[0], dataRange[1]);
     d3.selectAll("input")
     .each(function(d,i) {
       var readID = this.parentNode.id;
       if (this.checked) {
         read = data.queries.find(r => r.name == readID);
-        renderDetail(read, min, max);
+        renderDetail(read, dataRange[0], dataRange[1]);
       }
       else {
         div = d3.select("#data-" + readID).select("*").remove();
@@ -122,9 +222,18 @@ function loadDetail(min, max) {
 }
 
 function renderDetail(data, min, max) {
-  var xscale = d3.scaleLinear().domain([0, (max - min)]).range([0,width+15]);
-  var yscale = d3.scaleLinear().domain([0, 42]).range([0,68]);
-  var div = null
+  var filteredData =  data.seq.filter(function(d, i) { 
+    return i >= min && i < max && !deletedRanges.some(r => r[0] <= i && r[1] >= i)
+  });
+  var filteredQual =  data.qual.filter(function(d, i) { 
+    return i >= min && i < max && !deletedRanges.some(r => r[0] <= i && r[1] >= i)
+  });
+  var dataScale = d3.scaleLinear().domain([0, filteredData.length]).range([0,width]);
+  var xscale = fc.scaleDiscontinuous(d3.scaleLinear())
+    .discontinuityProvider(fc.discontinuityRange.apply(this, deletedRanges))
+    .domain([min, max]).range([0,width]);  
+  var yscale = d3.scaleLinear().domain([0, 42]).range([0,50]);
+  var div = null;
   if (d3.select("#data-" + data.name).size() > 0) {
     div = d3.select("#data-" + data.name)
     div.select("*").remove();
@@ -132,11 +241,10 @@ function renderDetail(data, min, max) {
   else {
     div = d3.select("#detail-container").append("div").attr("id", "data-" + data.name);
   }
-  var canvas = div.append("svg").attr("width", width + 65).attr("height", 150);
-  canvas.selectAll("rect").data(function () {
-      return data.seq.filter(function(d, i) { return i >= min && i < max});
-    }).enter().append("rect")
-    .attr("fill", function(d) {
+
+  var canvas = div.append("svg").attr("width", width + 65).attr("height", 95);
+  canvas.selectAll(".base rect").data(filteredData).enter().append("rect").attr("class", "base")
+    .attr("fill", function(d,i) {
       if (d == 1)
         return "green";
       else if (d == 2)
@@ -148,19 +256,24 @@ function renderDetail(data, min, max) {
       else
         return "white";
     })
-    .attr("x", function(d,i) { return xscale(i) + 30; })
-    .attr("y", function(d) {
-      return 25;
+    .attr("x", function(d,i) { return dataScale(i) + 30; })
+    .attr("y", function(d,i) {
+      return 24 + 50 - yscale(filteredQual[i]);
     })
-    .attr("width", function(d,i) { return xscale(i + 1) - xscale(i)})
+    .attr("width", function(d,i) { return dataScale(i+1) - dataScale(i)})
     .attr("height", function(d,i) {
-      return yscale(data.qual[i]);
+      return yscale(filteredQual[i]);
     });
-  canvas.selectAll("text").data(function (read) {
-      return data.seq.filter(function(d, i) { return i >= min && i < max});
-    }).enter().append("text")
-    .text(function(d) { 
-      if ((max - min) > (width/6)) return "";
+  canvas.selectAll(".cut rect").data(deletedRanges.filter(r => r[0] >= min && r[1] <= max)).enter().append("rect").attr("class", "cut")
+      .attr("fill", "black")
+      .attr("x", function(d) { return xscale(d[0]) - (xscale(d[0]) % (width/filteredData.length)) + 30 - 2; })
+      .attr("y", function(d) { return 12; })
+      .attr("width", function(d) { return 3; })
+      .attr("height", function(d) { return 75; });
+  canvas.selectAll("text").data(filteredData).enter().append("text")
+    .text(function(d,i) { 
+      if (filteredData.length > (width/6))
+        return ""
       if (d == 1)
         return "A";
       else if (d == 2)
@@ -176,7 +289,7 @@ function renderDetail(data, min, max) {
     .attr("font-size", "10px")
     .attr("fill", "black")
     .style("text-anchor", "middle")
-    .attr("x", function(d,i) { return xscale(i) + 30 + (xscale(i + 1) - xscale(i))/2; })
+    .attr("x", function(d,i) { return dataScale(i) + 30 + (dataScale(i + 1) - dataScale(i))/2; })
     .attr("y", 23);
   canvas.append("text").text(data.name)
     .attr("font-family", "sans-serif")
@@ -184,9 +297,10 @@ function renderDetail(data, min, max) {
     .attr("fill", "black")
     .style("text-anchor", "left")
     .attr("x", 30)
-    .attr("y", 10)
-  canvas.append("g").call(d3.axisBottom().scale(d3.scaleLinear().domain([min, max]).range([0,width+15]))).attr("transform", "translate(30, 95)");
-  canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([0, 42]).range([0,68])).tickValues([0,6,12,18,24,30,36,42])).attr("transform", "translate(27, 24)");
+    .attr("y", 11);
+
+  canvas.append("g").call(d3.axisBottom().scale(xscale)).attr("transform", "translate(30, 75)");
+  canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([12, 0]).range([0,50])).tickValues([0,3,6,9,12])).attr("transform", "translate(28, 24)");
 }
 </script>
 </body>
