@@ -282,7 +282,7 @@ def output_json(trgt, trgt_l, trgt_seq, trgt_qual, queries, outpath):
             for k,q in queries.items()
         ]
     )
-    print(json.dumps(data, indent=4), file=outfile)
+    print(json.dumps(data,separators=(',', ':')), file=outfile)
     outfile.close()
     if not VERBOSE:
         return
