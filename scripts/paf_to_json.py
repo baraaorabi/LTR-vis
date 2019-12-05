@@ -14,6 +14,14 @@ dna_to_int = dict(
     N=4,
 )
 
+VERBOSE = False
+INS_S = -0.2
+DEL_S = -0.2
+INS_O = -1
+DEL_O = -1
+MXM_S = -1
+MAT_S = +1
+
 def str2bool(v):
     if isinstance(v, bool):
        return v
@@ -23,8 +31,6 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
-
-VERBOSE = False
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -68,7 +74,8 @@ def parse_paf(paf):
         assert(trgt   == line[5])
         assert(trgt_l == int(line[6]))
         quer = line[0]
-        assert(not quer in queries)
+        if quer in queries:
+            continue
         quer_l = int(line[1])
         quer_s = int(line[2])
         quer_e = int(line[3])
@@ -186,13 +193,13 @@ def compute_cigar(queries, trgt_l):
         for pos in range(0, q['trgt_s']):
             t_pos+=1
         if t_pos > 0:
-            intervals.append(dict(orientation=q['quer_o'], type='d', size=t_pos, start=0, end=t_pos-1))
+            intervals.append(dict(score=0, orientation=q['quer_o'], type='d', size=t_pos, start=0, end=t_pos-1))
         if q_pos > 0:
-            intervals.append(dict(orientation=q['quer_o'], type='i', size=q_pos, start=q['trgt_s'], end=q['trgt_s']))
+            intervals.append(dict(score=0, orientation=q['quer_o'], type='i', size=q_pos, start=q['trgt_s'], end=q['trgt_s'], qstart=0, qend=q_pos-1))
         for size,op in q['cigar']:
-            if op == 'M' or op == 'X':
+            if op == 'M' or op == 'X' or op =='=':
                 if len(intervals) == 0 or intervals[-1]['type'] != 'm':
-                    intervals.append(dict(orientation=q['quer_o'], type='m',size=0,start=t_pos,end=t_pos-1))
+                    intervals.append(dict(score=0, orientation=q['quer_o'], type='m',size=0,start=t_pos,end=t_pos-1))
                 read_length+= size
                 for pos in range(t_pos, t_pos+size):
                     t_to_q[pos] = q_pos
@@ -200,21 +207,26 @@ def compute_cigar(queries, trgt_l):
                     t_pos += 1
                     intervals[-1]['end'] += 1
                     intervals[-1]['size'] += 1
+                if op == '=':
+                     intervals[-1]['score'] += size*MAT_S
+                elif op == 'X':
+                     intervals[-1]['score'] += size*MXM_S
             elif op == 'I':
                 read_length+= size
                 if size > 10:
-                    intervals.append(dict(orientation=q['quer_o'], type='i',size=size,start=t_pos,end=t_pos))
+                    intervals.append(dict(score=0, orientation=q['quer_o'], type='i',size=size,start=t_pos,end=t_pos, qstart=q_pos, qend=q_pos+size-1))
                 else:
-                    pass
+                     intervals[-1]['score'] += size*INS_S + INS_O
                 q_pos += size
             elif op == 'D' or op == 'N':
                 if size > 20:
-                    intervals.append(dict(orientation=q['quer_o'], type='d',size=size,start=t_pos,end=t_pos+size-1))
+                    intervals.append(dict(score=0, orientation=q['quer_o'], type='d',size=size,start=t_pos,end=t_pos+size-1))
                 else:
                     if intervals[-1]['type'] != 'm':
-                        intervals.append(dict(orientation=q['quer_o'], type='m',size=0,start=t_pos,end=t_pos-1))
+                        intervals.append(dict(score=0, orientation=q['quer_o'], type='m',size=0,start=t_pos,end=t_pos-1))
                     intervals[-1]['end'] += size
                     intervals[-1]['size'] += size
+                    intervals[-1]['score'] += size*DEL_S + DEL_O
                 t_pos += size
             else:
                 raise Exception('Dunno what to do with cigar {}:{}'.format(op,size))
@@ -224,10 +236,10 @@ def compute_cigar(queries, trgt_l):
         assert (q_pos ==  q['quer_e'])
         assert (t_pos ==  q['trgt_e']),[t_pos, q['trgt_e']]
         if q['quer_e'] > 0 and q['quer_l'] - q['quer_e'] > 0:
-            intervals.append(dict(orientation=q['quer_o'], type='i', size=q['quer_l'] - q['quer_e'], start=q['trgt_e'], end=q['trgt_e']))
+            intervals.append(dict(score=0, orientation=q['quer_o'], type='i', size=q['quer_l'] - q['quer_e'], start=q['trgt_e'], end=q['trgt_e'], qstart=q['quer_e'], qend=q['quer_l']-1))
         size = (trgt_l) - (q['trgt_e'])
         if size > 0:
-            intervals.append(dict(orientation=q['quer_o'], type='d', size=size, start=q['trgt_e'], end=trgt_l-1))
+            intervals.append(dict(score=0, orientation=q['quer_o'], type='d', size=size, start=q['trgt_e'], end=trgt_l-1))
         for idx,i in enumerate(intervals):
             if i['type']!='i':
                 continue
@@ -235,6 +247,19 @@ def compute_cigar(queries, trgt_l):
                 intervals[idx]['type']='p'
             elif idx == len(intervals)-1 or intervals[idx+1]['type'] == 'd':
                 intervals[idx]['type']='s'
+        for idx,i in enumerate(intervals):
+            if i['type']!='m':
+                continue
+            if i['score']/i['size']>0.9:
+                intervals[idx]['score']=5
+            elif i['score']/i['size']>0.8:
+                intervals[idx]['score']=4
+            elif i['score']/i['size']>0.7:
+                intervals[idx]['score']=3
+            elif i['score']/i['size']>0.6:
+                intervals[idx]['score']=2
+            else:
+                intervals[idx]['score']=1
         queries[k]['t_to_q']    = t_to_q
         queries[k]['intervals'] = intervals
 

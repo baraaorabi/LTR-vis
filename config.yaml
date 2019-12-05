@@ -15,7 +15,7 @@ reference:
 mapping_settings:
     dna        : -x splice
     cdna       : -x map-ont
-    read-to-gene : --splice -c --secondary=no
+    read-to-gene : --splice -c --eqx --secondary=no
 
 genes:
     E2F1   : E2F1

@@ -380,6 +380,7 @@
             ],
             "intervals": [
                 {
+                    "score": 91,
                     "orientation": "+",
                     "type": "m",
                     "size": 91,
@@ -578,6 +579,7 @@
             ],
             "intervals": [
                 {
+                    "score": 79,
                     "orientation": "+",
                     "type": "m",
                     "size": 91,
@@ -776,6 +778,7 @@
             ],
             "intervals": [
                 {
+                    "score": 25,
                     "orientation": "+",
                     "type": "m",
                     "size": 25,
@@ -783,6 +786,7 @@
                     "end": 24
                 },
                 {
+                    "score": 0,
                     "orientation": "+",
                     "type": "d",
                     "size": 26,
@@ -790,6 +794,7 @@
                     "end": 50
                 },
                 {
+                    "score": 0,
                     "orientation": "+",
                     "type": "p",
                     "size": 13,
@@ -797,6 +802,7 @@
                     "end": 51
                 },
                 {
+                    "score": 40,
                     "orientation": "+",
                     "type": "m",
                     "size": 40,
@@ -995,6 +1001,7 @@
             ],
             "intervals": [
                 {
+                    "score": 0,
                     "orientation": "+",
                     "type": "d",
                     "size": 6,
@@ -1002,6 +1009,7 @@
                     "end": 5
                 },
                 {
+                    "score": 74,
                     "orientation": "+",
                     "type": "m",
                     "size": 74,
@@ -1009,6 +1017,7 @@
                     "end": 79
                 },
                 {
+                    "score": 0,
                     "orientation": "+",
                     "type": "d",
                     "size": 11,
@@ -1207,6 +1216,7 @@
             ],
             "intervals": [
                 {
+                    "score": 0,
                     "orientation": "+",
                     "type": "d",
                     "size": 5,
@@ -1214,6 +1224,7 @@
                     "end": 4
                 },
                 {
+                    "score": 0,
                     "orientation": "+",
                     "type": "p",
                     "size": 3,
@@ -1221,6 +1232,7 @@
                     "end": 5
                 },
                 {
+                    "score": 41,
                     "orientation": "+",
                     "type": "m",
                     "size": 43,
@@ -1228,6 +1240,7 @@
                     "end": 47
                 },
                 {
+                    "score": 0,
                     "orientation": "+",
                     "type": "i",
                     "size": 22,
@@ -1235,6 +1248,7 @@
                     "end": 48
                 },
                 {
+                    "score": 43,
                     "orientation": "+",
                     "type": "m",
                     "size": 43,
@@ -1242,6 +1256,7 @@
                     "end": 90
                 },
                 {
+                    "score": 0,
                     "orientation": "+",
                     "type": "s",
                     "size": 28,
