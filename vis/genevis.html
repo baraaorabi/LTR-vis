@@ -118,6 +118,7 @@ function processInterval(interval) {
   newInterval.start = start;
   newInterval.end = end;
   newInterval.size = size;
+  newInterval.score = interval.score;
   return newInterval;
 }
 
@@ -142,7 +143,23 @@ function loadOverview() {
     canvas.selectAll(".match rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "m"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("rect").attr("class", "match")
-      .attr("fill", "green")
+      .attr("fill", function (d) {
+        if (d.score == 0)
+          return "darkred";
+        if (d.score == 1)
+          return "coral";
+        if (d.score == 2)
+          return "gold";
+        if (d.score == 3)
+          return "lawngreen";
+        if (d.score == 4)
+          return "green";
+        if (d.score == 5)
+          return "darkgreen";
+        else {
+          return "black";
+        }
+      })
       .attr("x", function(d) { return scale(d.start) + 30; })
       .attr("y", 25)
       .attr("width", function(d) { return scale(d.size)})
