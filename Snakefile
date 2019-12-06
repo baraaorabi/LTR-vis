@@ -19,6 +19,7 @@ rule all:
         expand('{}/{{sample}}.fastq'.format(download_d), sample=config['samples']),
         expand('{}/{{sample}}.{{species}}.{{acids}}.paf'.format(download_d), sample=config['samples'], species=species, acids=['cdna']),
         expand('{}/gene.fasta'.format(working_d), gene=config['genes'], species=species),
+        expand('{}/gene.on-motifs.tsv'.format(working_d), gene=config['genes'], species=species),
         expand('{}/{{sample}}.reads.fastq'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads.aln.tsv'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads-to-gene.paf'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
@@ -124,12 +125,29 @@ rule gene_read_mapping:
     shell:
         'minimap2 {params.mapping_settings} -t {threads}  {input.gene} {input.reads} > {output.paf}'
 
+rule target_motifs:
+    input:
+        script = config['exec']['motifs'],
+        gene  = '{}/gene.fasta'.format(working_d),
+        motifs  = config['motifs'],
+    output:
+        tsv = '{}/gene.on-motifs.tsv'.format(working_d),
+    wildcard_constraints:
+        gene='|'.join(config['genes']),
+        species='|'.join(species),
+    conda:
+        'conda.env'
+    shell:
+        '{input.script} -m {input.motifs} -g {input.gene} -o {output.tsv}'
+
 rule paf_to_json:
     input:
         script  = config['exec']['paf_to_json'],
         paf     = '{}/{{sample}}.reads-to-gene.paf'.format(working_d),
         target  = '{}/gene.fasta'.format(working_d),
+        target_motifs = '{}/gene.on-motifs.tsv'.format(working_d),
         queries = '{}/{{sample}}.reads.fastq'.format(working_d),
+        motifs = config['motifs'],
     output:
         json = '{}/{{sample}}.reads-to-gene.json'.format(working_d),
     wildcard_constraints:
@@ -139,7 +157,7 @@ rule paf_to_json:
     conda:
         'conda.env'
     shell:
-        '{input.script} -t {input.target} -q {input.queries} -p {input.paf} -jo {output.json}'
+        '{input.script} -t {input.target} -tm {input.target_motifs} -q {input.queries} -p {input.paf} -m {input.motifs} -jo {output.json}'
 
 rule vis:
     input:

@@ -16,6 +16,7 @@ mapping_settings:
     dna        : -x splice
     cdna       : -x map-ont
     read-to-gene : --splice -c --eqx --secondary=no
+    motifs : -x map-ont
 
 genes:
     E2F1   : E2F1
@@ -24,9 +25,10 @@ genes:
     PLSCR3 : PLSCR3
     TEST : TEST
 
+motifs: motifs.tsv
+
 exec:
+    motifs : scripts/motifs.py
     gene_reads : scripts/get_reads_by_gene.py
     gene       : scripts/get_gene.py
     paf_to_json : scripts/paf_to_json.py
-    fastq_to_json : scripts/fastq_to_json.py
-    fasta_to_json : scripts/fasta_to_json.py

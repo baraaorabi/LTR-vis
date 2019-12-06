@@ -46,11 +46,21 @@ def parse_args():
                         type=str,
                         required=True,
                         help="Path to FASTA/Q file for target")
+    parser.add_argument("-tm",
+                        "--target-motifs",
+                        type=str,
+                        required=True,
+                        help="Path to FASTA/Q file for target")
     parser.add_argument("-p",
                         "--paf",
                         type=str,
                         required=True,
                         help="Path to PAF file")
+    parser.add_argument("-m",
+                        "--motifs",
+                        type=str,
+                        required=True,
+                        help="Gene name")
     parser.add_argument("-jo",
                         "--json-out",
                         type=str,
@@ -264,14 +274,15 @@ def compute_cigar(queries, trgt_l):
         queries[k]['t_to_q']    = t_to_q
         queries[k]['intervals'] = intervals
 
-def output_json(trgt, trgt_l, trgt_seq, trgt_qual, queries, outpath):
+def output_json(trgt, trgt_l, trgt_seq, trgt_qual, trgt_motifs, queries, outpath):
     outfile = open(outpath, 'w')
     data = dict(
         target=dict(
             name=trgt,
             length=trgt_l,
             seq=trgt_seq,
-            qual=trgt_qual
+            qual=trgt_qual,
+            motifs=trgt_motifs
         ),
         queries=[
             dict(
@@ -297,6 +308,39 @@ def output_json(trgt, trgt_l, trgt_seq, trgt_qual, queries, outpath):
         print(''.join(str(x) for x in d['seq']),d['name'],'\n',  queries[d['name']]['cigar'], d['intervals'])
         print(''.join(chr(x+33) for x in d['qual']))
 
+def get_motifs(tsv):
+    motifs = dict()
+    for l in open(tsv):
+        l = l.rstrip().split('\t')
+        motifs[l[0]]=dict(regex=l[1],type=int(l[2]))
+    return motifs
+
+def find_motifs(queries, motifs):
+    return
+    for q,v in queries.items():
+        for idx,i in enumerate(intervals):
+            if not i['type'] in ['p','i','s']:
+                continue
+            seq = 'x'
+            for label,motif in motifs.items():
+                rg = motif['regex']
+                ty = motif['type']
+                for match in re.finditer(rg,seq):
+                    print(q,mk,i.start(),i.end())
+
+
+
+def get_target_motifs(target_motifs,motifs):
+    tm = list()
+    for l in open(target_motifs):
+        l = l.rstrip().split('\t')
+        tm.append(dict(
+            type=motifs[l[1]]['type'],
+            label=l[1],
+            start=int(l[2]),
+            end=int(l[3])
+        ))
+    return tm
 
 def main():
     args = parse_args()
@@ -308,7 +352,10 @@ def main():
     trgt_seq,trgt_qual = get_target(target=args.target, target_name=trgt)
     get_queries(queries=queries, query_file=args.query)
     compute_cigar(queries=queries, trgt_l=trgt_l)
-    output_json(trgt=trgt, trgt_l=trgt_l, trgt_seq=trgt_seq, trgt_qual=trgt_qual, queries=queries, outpath=args.json_out)
+    motifs = get_motifs(args.motifs)
+    find_motifs(queries=queries, motifs=motifs)
+    trgt_motifs = get_target_motifs(target_motifs=args.target_motifs, motifs=motifs)
+    output_json(trgt=trgt, trgt_l=trgt_l, trgt_seq=trgt_seq, trgt_qual=trgt_qual, trgt_motifs=trgt_motifs, queries=queries, outpath=args.json_out)
 
     # for q in queries:
     #     print('quer_l', queries[q]['quer_l'])
