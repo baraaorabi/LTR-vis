@@ -20,7 +20,7 @@
     <div style="margin:auto; width:100%" id="overview-container"></div><br>
     <div style="margin:auto; width:100%" id="detail-container"></div>
 <script>
-var width = 1400;
+var width = 1300;
 var targetLength = 0;
 var allCanvases = [];
 var syncing = false;
@@ -106,7 +106,7 @@ function processInterval(interval) {
           start++;
       }
     }
-  if (interval.type == "i") {
+  if (interval.type == "i" || interval.type == "p" || interval.type == "s") {
     if (!deletedRanges.some(r => r[0] <= interval.start && r[1] >= interval.start))
       size = interval.size;
   }
@@ -128,7 +128,7 @@ function loadOverview() {
     var scale = d3.scaleLinear().domain([0, length]).range([0,width]);
     var div = d3.select("#overview-container").selectAll("div").data(reads).enter().append("div").attr("id", function (d) { return d.name; });
     div.append("input").attr("type", "checkbox").attr("onclick", "updateDetail();");
-    var canvas = div.append("svg").attr("width", (width + 100)).attr("height", 45).append("g");
+    var canvas = div.append("svg").attr("width", (width + 200)).attr("height", 45).append("g");
     allCanvases.push(canvas);
 
     canvas.selectAll(".del rect").data(function (read) {
@@ -144,17 +144,9 @@ function loadOverview() {
       }).enter().append("rect").attr("class", "match")
       .attr("fill", "green")
       .attr("x", function(d) { return scale(d.start) + 30; })
-      .attr("y", 26)
+      .attr("y", 25)
       .attr("width", function(d) { return scale(d.size)})
-      .attr("height", 6);
-    canvas.selectAll(".ins rect").data(function (read) {
-        return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
-      }).enter().append("rect").attr("class", "ins")
-      .attr("fill", "purple")
-      .attr("x", function(d) { return scale(d.start) + 30; })
-      .attr("y", function(d) { return 26; })
-      .attr("width", function(d) { return 1; })
-      .attr("height", function(d) { return 10; });
+      .attr("height", 8);
     canvas.selectAll(".cut rect").data(deletedRanges.map(function (r) {
       var interval = {};
       interval.start = r[0];
@@ -166,25 +158,45 @@ function loadOverview() {
       .attr("y", function(d) { return 11; })
       .attr("width", function(d) { return 2; })
       .attr("height", function(d) { return 30; });
-    canvas.selectAll("ellipse").data(function (read) {
+    canvas.selectAll(".prefix rect").data(function (read) {
+        return read.intervals.filter(function(d) { return d.type === "p"}).map(i => processInterval(i)).filter(d => d.size > 0);
+      }).enter().append("rect").attr("class", "prefix")
+      .attr("fill", "purple")
+      .attr("x", function(d) { return scale(d.start) + 30 - scale(d.size) })
+      .attr("y", function(d) { return 16; })
+      .attr("width", function(d) { return scale(d.size)})
+      .attr("height", function(d) { return 8; });
+    canvas.selectAll(".suffix rect").data(function (read) {
+        return read.intervals.filter(function(d) { return d.type === "s"}).map(i => processInterval(i)).filter(d => d.size > 0);
+      }).enter().append("rect").attr("class", "suffix")
+      .attr("fill", "purple")
+      .attr("x", function(d) { return scale(d.start) + 30 })
+      .attr("y", function(d) { return 16; })
+      .attr("width", function(d) { return scale(d.size)})
+      .attr("height", function(d) { return 8; });
+    canvas.selectAll(".insert rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
-      }).enter().append("ellipse")
-      .attr("stroke", "purple")
-      .attr("fill", "white")
-      .attr("cx", function(d) { return scale(d.start) + 31; })
-      .attr("cy", function(d) { return 14; })
-      .attr("rx", function(d) { return 10; })
-      .attr("ry", function(d) { return 12; });
-    canvas.selectAll("text").data(function (read) {
+      }).enter().append("rect").attr("class", "insert")
+      .attr("fill", "purple")
+      .attr("x", function(d) { return scale(d.start) + 30 - (scale(d.size)/2) })
+      .attr("y", function(d) { return 16; })
+      .attr("width", function(d) { return scale(d.size)})
+      .attr("height", function(d) { return 8; });
+    canvas.selectAll(".marker polygon").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
-      }).enter().append("text")
-      .text(function(d) {return d.size; })
-      .attr("font-family", "sans-serif")
-      .attr("font-size", "10px")
-      .attr("fill", "black")
-      .style("text-anchor", "middle")
-      .attr("x", function(d) { return scale(d.start) + 31; })
-      .attr("y", function(d) { return 18; });
+      }).enter().append("polygon").attr("class", "marker")
+      .attr("fill", "purple")
+      .attr("points", function(d) { return (scale(d.start) + 25).toString() + ",16 " + (scale(d.start) + 35).toString() + ",16 " + (scale(d.start) + 30).toString() + ",34 "; });
+    canvas.selectAll(".marker polygon").data(function (read) {
+        return read.intervals.filter(function(d) { return d.type === "p"}).map(i => processInterval(i)).filter(d => d.size > 0);
+      }).enter().append("polygon").attr("class", "marker")
+      .attr("fill", "purple")
+      .attr("points", function(d) { return (scale(d.start) + 22).toString() + ",16 " + (scale(d.start) + 30).toString() + ",16 " + (scale(d.start) + 30).toString() + ",34 "; });
+    canvas.selectAll(".marker polygon").data(function (read) {
+        return read.intervals.filter(function(d) { return d.type === "s"}).map(i => processInterval(i)).filter(d => d.size > 0);
+      }).enter().append("polygon").attr("class", "marker")
+      .attr("fill", "purple")
+      .attr("points", function(d) { return (scale(d.start) + 30).toString() + ",16 " + (scale(d.start) + 38).toString() + ",16 " + (scale(d.start) + 30).toString() + ",34 "; });
     canvas.append("text").text(function (read) {
       return read.name;
     })
@@ -230,7 +242,7 @@ function renderDetail(data, min, max) {
   var xscale = fc.scaleDiscontinuous(d3.scaleLinear())
     .discontinuityProvider(fc.discontinuityRange.apply(this, deletedRanges))
     .domain([min, max]).range([0,width]);
-  var yscale = d3.scaleLinear().domain([0, 42]).range([0,50]);
+  var yscale = d3.scaleLinear().domain([0, 12]).range([0,50]);
   var div = null;
   if (d3.select("#data-" + data.name).size() > 0) {
     div = d3.select("#data-" + data.name)
