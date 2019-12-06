@@ -38,7 +38,7 @@ rule download_ref:
         'conda.env'
     shell:
         'wget {params.url} -O {output}.gz;'
-        '  zcat {output}.gz > {output};'
+        '  gunzip -c {output}.gz > {output};'
         '  chmod -w {output};'
         '  rm {output}.gz'
 
