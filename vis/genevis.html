@@ -3,11 +3,10 @@
 <meta charset="utf-8">
 <style type="text/css">
   input[type='checkbox'] {
-    height:20px;
-    width:15px;
+    width:18px;
     margin:0px;
     margin-right:5px;
-    margin-top:4px;
+    margin-top:10px;
     vertical-align: top;
   }
   div {
@@ -18,8 +17,9 @@
 <script src="https://unpkg.com/d3fc/build/d3fc.min.js"></script>
 </head>
 <body onkeydown="deleteRange(event);" onload="loadOverview();">
+
     <div style="margin:auto; width:100%" id="overview-container"></div>
-    <div style="margin:auto; width:100%" id="detail-container"></div>
+    <div style="margin:auto; margin-left:22px; width:100%" id="detail-container"></div>
 <script>
 var width = 1300;
 var targetLength = 0;
@@ -128,9 +128,9 @@ function loadOverview() {
     var reads = data.queries;
     var length = currentLength();
     var scale = d3.scaleLinear().domain([0, length]).range([0,width]);
-    var div = d3.select("#overview-container").selectAll("div").data(reads).enter().append("div").attr("id", function (d) { return d.name; });
+    var div = d3.select("#overview-container").selectAll("div").data(reads).enter().append("div").style("margin", "-6px").attr("id", function (d) { return d.name; });
     div.append("input").attr("type", "checkbox").attr("onclick", "updateDetail();");
-    var canvas = div.append("svg").attr("width", (width + 60)).attr("height", 30).append("g");
+    var canvas = div.append("svg").attr("width", (width + 60)).attr("height", 34).append("g");
     allCanvases.push(canvas);
 
     canvas.selectAll(".del rect").data(function (read) {
@@ -138,7 +138,7 @@ function loadOverview() {
       }).enter().append("rect").attr("class", "del")
       .attr("fill", "gray")
       .attr("x", function(d) { return scale(d.start) + 30; })
-      .attr("y", 13)
+      .attr("y", 15)
       .attr("width", function(d) { return scale(d.size)})
       .attr("height", 2);
     canvas.selectAll(".match rect").data(function (read) {
@@ -162,7 +162,7 @@ function loadOverview() {
         }
       })
       .attr("x", function(d) { return scale(d.start) + 30; })
-      .attr("y", 10)
+      .attr("y", 12)
       .attr("width", function(d) { return scale(d.size)})
       .attr("height", 8);
     canvas.selectAll(".cut rect").data(deletedRanges.map(function (r) {
@@ -173,9 +173,9 @@ function loadOverview() {
     })).enter().append("rect").attr("class", "cut")
       .attr("fill", "black")
       .attr("x", function(d) { return scale(d.start) + 30; })
-      .attr("y", function(d) { return 1; })
+      .attr("y", function(d) { return 0; })
       .attr("width", function(d) { return 2; })
-      .attr("height", function(d) { return 28; });
+      .attr("height", function(d) { return 34; });
 
     canvas.selectAll(".prefix rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "p"}).map(i => processInterval(i)).filter(d => d.size > 0);
@@ -187,7 +187,7 @@ function loadOverview() {
         else
           return scale(d.start) + 30 - scale(d.size);
       })
-      .attr("y", function(d) { return 1; })
+      .attr("y", function(d) { return 3; })
       .attr("width", function(d) { 
         if (scale(d.start) - scale(d.size) < 0) 
           return scale(d.start) + 6;
@@ -200,7 +200,7 @@ function loadOverview() {
       }).enter().append("rect").attr("class", "suffix")
       .attr("fill", "gray")
       .attr("x", function(d) { return scale(d.start) + 30 })
-      .attr("y", function(d) { return 1; })
+      .attr("y", function(d) { return 3; })
       .attr("width", function(d) { 
         if (scale(d.start) + scale(d.size) > width) {
           return width - scale(d.start) + 6;
@@ -214,24 +214,24 @@ function loadOverview() {
       }).enter().append("rect").attr("class", "insert")
       .attr("fill", "gray")
       .attr("x", function(d) { return scale(d.start) + 30 - (scale(d.size)/2) })
-      .attr("y", function(d) { return 1; })
+      .attr("y", function(d) { return 3; })
       .attr("width", function(d) { return scale(d.size)})
       .attr("height", function(d) { return 8; });
     canvas.selectAll(".imarker polygon").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("polygon").attr("class", "marker")
       .attr("fill", "gray")
-      .attr("points", function(d) { return (scale(d.start) + 27).toString() + ",1 " + (scale(d.start) + 33).toString() + ",1 " + (scale(d.start) + 30).toString() + ",19 "; });
+      .attr("points", function(d) { return (scale(d.start) + 27).toString() + ",3 " + (scale(d.start) + 33).toString() + ",3 " + (scale(d.start) + 30).toString() + ",21 "; });
     canvas.selectAll(".pmarker polygon").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "p"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("polygon").attr("class", "marker")
       .attr("fill", "gray")
-      .attr("points", function(d) { return (scale(d.start) + 25).toString() + ",1 " + (scale(d.start) + 30).toString() + ",1 " + (scale(d.start) + 30).toString() + ",19 "; });
+      .attr("points", function(d) { return (scale(d.start) + 25).toString() + ",3 " + (scale(d.start) + 30).toString() + ",3 " + (scale(d.start) + 30).toString() + ",21 "; });
     canvas.selectAll(".smarker polygon").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "s"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("polygon").attr("class", "marker")
       .attr("fill", "gray")
-      .attr("points", function(d) { return (scale(d.start) + 30).toString() + ",1 " + (scale(d.start) + 35).toString() + ",1 " + (scale(d.start) + 30).toString() + ",19 "; });
+      .attr("points", function(d) { return (scale(d.start) + 30).toString() + ",3 " + (scale(d.start) + 35).toString() + ",3 " + (scale(d.start) + 30).toString() + ",21 "; });
     canvas.selectAll(".prefixcut text").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "p"}).map(i => processInterval(i)).filter(d => scale(d.start) - scale(d.size) < 0);
       }).enter().append("text")
@@ -241,7 +241,7 @@ function loadOverview() {
       .attr("fill", "gray")
       .style("text-anchor", "right")
       .attr("x", function(d) { return 2; })
-      .attr("y", function(d) { return 9; });
+      .attr("y", function(d) { return 11; });
     canvas.selectAll(".suffixcut text").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "s"}).map(i => processInterval(i)).filter(d => scale(d.start) + scale(d.size) > width);
       }).enter().append("text")
@@ -251,7 +251,7 @@ function loadOverview() {
       .attr("fill", "gray")
       .style("text-anchor", "right")
       .attr("x", function(d) { return width + 36; })
-      .attr("y", function(d) { return 9; });
+      .attr("y", function(d) { return 11; });
     canvas.append("text").text(function (read) {
       return read.name;
     })
