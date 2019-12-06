@@ -272,13 +272,13 @@ function updateDetail() {
 
 function loadDetail(minSelection, maxSelection) {
     var dataRange = currentRangeFromSelection([minSelection, maxSelection])
-    renderDetail(data.target, dataRange[0], dataRange[1]);
+    renderDetail(data.target, null, dataRange[0], dataRange[1]);
     d3.selectAll("input")
     .each(function(d,i) {
       var readID = this.parentNode.id;
       if (this.checked) {
         read = data.queries.find(r => r.name == readID);
-        renderDetail(read, dataRange[0], dataRange[1]);
+        renderDetail(read, data.target, dataRange[0], dataRange[1]);
       }
       else {
         div = d3.select("#data-" + readID).select("*").remove();
@@ -286,8 +286,11 @@ function loadDetail(minSelection, maxSelection) {
   });
 }
 
-function renderDetail(data, min, max) {
+function renderDetail(data, target, min, max) {
   var filteredData =  data.seq.filter(function(d, i) {
+    return i >= min && i < max && !deletedRanges.some(r => r[0] <= i && r[1] >= i)
+  });
+  var filteredTarget = (target == null) ? null : target.seq.filter(function(d, i) {
     return i >= min && i < max && !deletedRanges.some(r => r[0] <= i && r[1] >= i)
   });
   var filteredQual =  data.qual.filter(function(d, i) {
@@ -310,7 +313,9 @@ function renderDetail(data, min, max) {
   var canvas = div.append("svg").attr("width", width + 65).attr("height", 85);
   canvas.selectAll(".base rect").data(filteredData).enter().append("rect").attr("class", "base")
     .attr("fill", function(d,i) {
-      if (d == 1)
+      if (target != null && filteredTarget[i] == d)
+        return "gray";
+      else if (d == 1)
         return "green";
       else if (d == 2)
         return "darkblue";
