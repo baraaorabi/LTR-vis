@@ -1,1 +1,3 @@
-poly_A	ATTCCGG	1
+poly_A	AAAAA	1
+motif2	ATTCCGG	2
+splicesite	GTAG	3
