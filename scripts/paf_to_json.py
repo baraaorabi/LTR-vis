@@ -13,6 +13,12 @@ dna_to_int = dict(
     T=4,
     N=4,
 )
+int_to_dna = {
+    1:'A',
+    2:'C',
+    3:'G',
+    4:'T',
+}
 dna_comp = {4:1, 3:2, 2:3,1:4,}
 
 VERBOSE = False
@@ -316,19 +322,22 @@ def get_motifs(tsv):
     return motifs
 
 def find_motifs(queries, motifs):
-    return
     for q,v in queries.items():
-        for idx,i in enumerate(intervals):
+        for idx,i in enumerate(v['intervals']):
             if not i['type'] in ['p','i','s']:
                 continue
-            seq = 'x'
+            queries[q]['intervals'][idx]['motifs'] = list()
+            seq = ''.join([int_to_dna[c] for c in v['seq'][i['qstart']:i['qend']]])
             for label,motif in motifs.items():
                 rg = motif['regex']
                 ty = motif['type']
                 for match in re.finditer(rg,seq):
-                    print(q,mk,i.start(),i.end())
-
-
+                    queries[q]['intervals'][idx]['motifs'].append(dict(
+                        type=motif['type'],
+                        label=label,
+                        start=match.start(),
+                        end=match.end()
+                    ))
 
 def get_target_motifs(target_motifs,motifs):
     tm = list()
@@ -338,7 +347,7 @@ def get_target_motifs(target_motifs,motifs):
             type=motifs[l[1]]['type'],
             label=l[1],
             start=int(l[2]),
-            end=int(l[3])
+            end=int(l[3])-1
         ))
     return tm
 
