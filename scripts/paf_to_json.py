@@ -13,6 +13,7 @@ dna_to_int = dict(
     T=4,
     N=4,
 )
+dna_comp = {4:1, 3:2, 2:3,1:4,}
 
 VERBOSE = False
 INS_S = -0.2
@@ -279,7 +280,7 @@ def output_json(trgt, trgt_l, trgt_seq, trgt_qual, queries, outpath):
                 qual = [q['qual'][q['t_to_q'][p]] if q['t_to_q'][p] != -1 else 0 for p in range(trgt_l)],
                 intervals = q['intervals']
             )
-            for k,q in queries.items()
+            for idx,(k,q) in enumerate(queries.items())
         ]
     )
     print(json.dumps(data,separators=(',', ':')), file=outfile)
