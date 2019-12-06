@@ -17,7 +17,6 @@
 <script src="https://unpkg.com/d3fc/build/d3fc.min.js"></script>
 </head>
 <body onkeydown="deleteRange(event);" onload="loadOverview();">
-
     <div style="margin:auto; width:100%" id="overview-container"></div>
     <div style="margin:auto; margin-left:22px; width:100%" id="detail-container"></div>
 <script>
@@ -125,17 +124,34 @@ function processInterval(interval) {
 
 function loadOverview() {
     targetLength = data.target.length
-    var reads = data.queries;
+    var reads = data.queries.sort(function (a,b) { return a.name.localeCompare(b.name); });
     var length = currentLength();
     var scale = d3.scaleLinear().domain([0, length]).range([0,width]);
     var xscale = fc.scaleDiscontinuous(d3.scaleLinear())
     .discontinuityProvider(fc.discontinuityRange.apply(this, deletedRanges))
     .domain([0, targetLength]).range([0,width]);
-    var div = d3.select("#overview-container").selectAll("div").data(reads).enter().append("div").style("margin", "-6px").attr("id", function (d) { return d.name; });
-    div.append("input").attr("type", "checkbox").attr("onclick", "updateDetail();");
+    var referenceDiv = d3.select("#overview-container").append("div").attr("class", "reference").style("margin", "-6px").style("margin-left", "17px");
+    var referenceCanvas = referenceDiv.append().append("svg").attr("width", (width + 60)).attr("height", 34).append("g");
+    allCanvases.push(referenceCanvas);
+    referenceCanvas.append("rect")
+      .attr("fill", "black")
+      .attr("x", 30)
+      .attr("y", 12)
+      .attr("width", width)
+      .attr("height", 8);
+    referenceCanvas.append("text").text(data.target.name)
+    .attr("font-family", "sans-serif")
+    .attr("font-size", "10px")
+    .attr("fill", "black")
+    .style("text-anchor", "left")
+    .attr("x", 30)
+    .attr("y", 29);
+    referenceCanvas.attr("class", "brush").call(d3.brushX().on("start brush", syncOverview));
+
+    var div = d3.select("#overview-container").selectAll(".read div").data(reads).enter().append("div").attr("class", "read").style("margin", "-6px").attr("id", function (d) { return d.name; });
+    div.append("input").attr("type", "checkbox").attr("id", function (d) { return d.name + "-box"; }).attr("onclick", "updateDetail();");
     var canvas = div.append("svg").attr("width", (width + 60)).attr("height", 34).append("g");
     allCanvases.push(canvas);
-
     canvas.selectAll(".del rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "d"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("rect").attr("class", "del")
@@ -275,17 +291,24 @@ function updateDetail() {
 }
 
 function loadDetail(minSelection, maxSelection) {
-    var dataRange = currentRangeFromSelection([minSelection, maxSelection])
+    var dataRange = currentRangeFromSelection([minSelection, maxSelection]);
+    if (d3.select("#data-" + data.target.name).size() == 0) {
+        d3.select("#detail-container").append("div").attr("id", "data-" + data.target.name);
+    }
     renderDetail(data.target, null, dataRange[0], dataRange[1]);
-    d3.selectAll("input")
-    .each(function(d,i) {
-      var readID = this.parentNode.id;
-      if (this.checked) {
-        read = data.queries.find(r => r.name == readID);
+    var boxes = [];
+    d3.selectAll("input").each(d => boxes.push(d));
+    boxes.sort(function (a,b) { return a.name.localeCompare(b.name); });
+    boxes.forEach(function(d) {
+      if (d3.select("#data-" + d.name).size() == 0) {
+        d3.select("#detail-container").append("div").attr("id", "data-" + d.name);
+      }
+      if (document.getElementById(d.name + "-box").checked) {
+        read = data.queries.find(r => r.name == d.name);
         renderDetail(read, data.target, dataRange[0], dataRange[1]);
       }
       else {
-        div = d3.select("#data-" + readID).select("*").remove();
+        d3.select("#data-" + d.name).select("*").remove();
       }
   });
 }
@@ -305,14 +328,8 @@ function renderDetail(data, target, min, max) {
     .discontinuityProvider(fc.discontinuityRange.apply(this, deletedRanges))
     .domain([min, max]).range([0,width]);
   var yscale = d3.scaleLinear().domain([0, 12]).range([0,50]);
-  var div = null;
-  if (d3.select("#data-" + data.name).size() > 0) {
-    div = d3.select("#data-" + data.name)
-    div.select("*").remove();
-  }
-  else {
-    div = d3.select("#detail-container").append("div").attr("id", "data-" + data.name);
-  }
+  var div = d3.select("#data-" + data.name);
+  div.select("*").remove();
 
   var canvas = div.append("svg").attr("width", width + 65).attr("height", 85);
   canvas.selectAll(".base rect").data(filteredData).enter().append("rect").attr("class", "base")
