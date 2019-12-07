@@ -26,6 +26,7 @@ rule all:
         expand('{}/{{sample}}.reads-to-gene.json'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads-to-gene.html'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads.targets.done'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
+        expand('{}/{{sample}}.reads.targets.paf.done'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
 
 rule download_ref:
     output:
@@ -95,6 +96,7 @@ rule gene_reads:
         reads  = '{}/{{sample}}.fastq'.format(download_d),
         gtf    = '{}/{{species}}.gtf'.format(download_d),
         paf    = '{}/{{sample}}.{{species}}.cdna.paf'.format(download_d),
+        gene  = '{}/gene.fastq'.format(working_d),
     output:
         reads = '{}/{{sample}}.reads.fastq'.format(working_d),
         alns  = '{}/{{sample}}.reads.aln.tsv'.format(working_d),
@@ -107,9 +109,9 @@ rule gene_reads:
     shell:
         '{input.script} -g {wildcards.gene}  -ar {input.gtf} '
         '  -p {input.paf} -r {input.reads}'
-        '  -ro {output.reads} -ao {output.alns} '
+        '  -ro {output.reads} -ao {output.alns}; cat {input.gene} >> {output.reads} '
 
-rule gene_targets:
+rule targets_fasta:
     input:
         reads = '{}/{{sample}}.reads.fastq'.format(working_d),
     output:
@@ -121,7 +123,7 @@ rule gene_targets:
         gene='|'.join(config['genes']),
         species='|'.join(species),
     run:
-        outpath = '{}.{{}}.fasta'.format(params.prefix)
+        outpath = '{}.{{}}.fastq'.format(params.prefix)
         rids = list()
         print(outpath)
         for idx,line in enumerate(open(input.reads)):
@@ -130,13 +132,47 @@ rule gene_targets:
                 rid = line[1:]
             elif idx%4 == 1:
                 seq = line
-            elif idx%4 == 2:
+            elif idx%4 == 3:
                 rids.append(rid)
                 outfile = open(outpath.format(rid),'w+')
-                print('>{}'.format(rid), file=outfile)
+                print('@{}'.format(rid), file=outfile)
                 print('{}'.format(seq), file=outfile)
+                print('+', file=outfile)
+                print('{}'.format(line), file=outfile)
                 outfile.close()
-        open(output.targets_done, 'w+')
+        print('\n'.join(rids), file=open(output.targets_done, 'w+'))
+
+rule target_paf:
+    input:
+        targets_done ='{}/{{sample}}.reads.targets.done'.format(working_d),
+        reads = '{}/{{sample}}.reads.fastq'.format(working_d),
+        gene  = '{}/gene.fastq'.format(working_d),
+    output:
+        targets_paf_done ='{}/{{sample}}.reads.targets.paf.done'.format(working_d),
+    params:
+        prefix ='{}/{{sample}}.read'.format(working_d),
+        mapping_settings = lambda wildcards: config['mapping_settings']['read-to-gene']
+    threads:
+        32
+    run:
+        import subprocess
+        target_tmlpt = '{}.{{}}.fastq'.format(params.prefix)
+        target_paf_tmlpt = '{}.{{}}.paf'.format(params.prefix)
+        rids = [r.rstrip() for r in open(input.targets_done)]
+        for rid in rids:
+            cmd='minimap2 {mapping_settings} -t {threads} {target} {queries} > {out}'.format(
+                mapping_settings=params.mapping_settings,
+                threads=threads,
+                target=target_tmlpt.format(rid),
+                queries=input.reads,
+                out=target_paf_tmlpt.format(rid)
+            )
+            import os
+            print(os.environ['HOME'])
+            print(cmd)
+            p = subprocess.call(cmd, shell=True)
+            assert p ==0
+        print('\n'.join(rids), file=open(output.targets_paf_done, 'w+'))
 
 
 rule gene_read_mapping:
