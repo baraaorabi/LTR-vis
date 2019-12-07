@@ -41,11 +41,11 @@ def parse_args():
                         type=str,
                         required=True,
                         help="Path to output reads TSV file")
-    parser.add_argument("-ao",
-                        "--alns-out",
-                        type=str,
-                        required=True,
-                        help="Path to output read alignments to whole transcriptome TSV file")
+    # parser.add_argument("-ao",
+    #                     "--alns-out",
+    #                     type=str,
+    #                     required=True,
+    #                     help="Path to output read alignments to whole transcriptome TSV file")
     args = parser.parse_args()
     return args
 
@@ -163,8 +163,8 @@ def main():
     print('Getting read alignments from {}'.format(args.paf))
     read_ids,read_alns = get_read_ids_from_paf(paf=args.paf, ginfo=ginfo)
 
-    print('Outputting read transcriptome alignments to {}'.format(args.alns_out))
-    output_alns_tsv(outpath=args.alns_out, read_alns=read_alns)
+    # print('Outputting read transcriptome alignments to {}'.format(args.alns_out))
+    # output_alns_tsv(outpath=args.alns_out, read_alns=read_alns)
     print('Outputting reads ({}) to {}'.format(args.reads, args.reads_out))
     output_reads(outpath=args.reads_out, fastq=args.reads, read_ids=read_ids)
 
