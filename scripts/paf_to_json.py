@@ -364,6 +364,8 @@ def main():
     motifs = get_motifs(args.motifs)
     find_motifs(queries=queries, motifs=motifs)
     trgt_motifs = get_target_motifs(target_motifs=args.target_motifs, motifs=motifs)
+    if trgt in queries:
+        del queries[trgt]
     output_json(trgt=trgt, trgt_l=trgt_l, trgt_seq=trgt_seq, trgt_qual=trgt_qual, trgt_motifs=trgt_motifs, queries=queries, outpath=args.json_out)
 
     # for q in queries:
