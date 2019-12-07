@@ -17,6 +17,7 @@
 <script src="https://unpkg.com/d3fc/build/d3fc.min.js"></script>
 </head>
 <body onkeydown="deleteRange(event);" onload="loadOverview();">
+    <div style="position: absolute; border: black 1px solid; text-align: center; background: white; font-family: sans-serif; font-size: 12px; visibility: hidden; width:60px; height:15px;" id="tooltip"></div>
     <div style="margin:auto; width:100%" id="overview-container"></div>
     <div style="margin:auto; margin-left:22px; width:100%" id="detail-container"></div>
 <script>
@@ -26,6 +27,17 @@ var allCanvases = [];
 var syncing = false;
 var lastSelection = null;
 var deletedRanges = [];
+
+function tooltip(text, x, y) {
+  if (text) {
+    document.getElementById("tooltip").style.left = x.toString() + "px";
+    document.getElementById("tooltip").style.top = (y + 15).toString() + "px";
+    document.getElementById("tooltip").innerHTML = "<span id='tooltipText'>" + text + "</span>";
+    document.getElementById("tooltip").style.visibility = "visible";
+  }
+  else
+    document.getElementById("tooltip").style.visibility = "hidden";
+}
 
 function syncOverview() {
   if (syncing) return;
@@ -41,12 +53,12 @@ function syncOverview() {
 }
 
 function deleteRange(event) {
-  if (event.keyCode == 8 || event.keyCode == 46) {
+  if (event.keyCode == 8 || event.keyCode == 46 || event.keyCode == 13) {
     if (event.shiftKey) {
       deletedRanges = [];
     }
     else {
-      if (event.altKey) {
+      if (event.altKey || event.keyCode == 13) {
         var currentRange = currentRangeFromSelection(lastSelection);
         deletedRanges = deletedRanges.filter(r => r[0] >= currentRange[0] && r[1] <= currentRange[1]);
         deletedRanges.push([0, currentRange[0]]);
@@ -119,8 +131,44 @@ function processInterval(interval) {
   newInterval.end = end;
   newInterval.size = size;
   newInterval.score = interval.score;
+  newInterval.type = interval.type;
+  newInterval.label = interval.label;
   return newInterval;
 }
+
+function highlightInsertion(event, tooltipText) {
+  if (tooltipText)
+    tooltip(tooltipText, event.clientX, event.clientY);
+  else {
+    if (event.target.nodeName == "rect") {
+      event.target.setAttribute("stroke", "#27AE60");
+    }
+    else {
+      event.target.setAttribute("fill", "blue");
+      event.target.setAttribute("text-decoration", "underline");
+    }
+  }
+  
+}
+function endHighlightInsertion(event) {
+  if (event.target.nodeName == "rect") {
+    event.target.setAttribute("stroke", "black");
+  }
+  else {
+    event.target.setAttribute("fill", "black");
+    event.target.removeAttribute("text-decoration");
+  }
+  tooltip();
+}
+
+function targetSwitch(event) {
+  loadAltTarget(event.target.parentElement.parentElement.id);
+}
+
+function loadAltTarget(id) {
+  alert("Loading target with ID: " + id);
+}
+
 
 function loadOverview() {
     targetLength = data.target.length
@@ -131,14 +179,27 @@ function loadOverview() {
     .discontinuityProvider(fc.discontinuityRange.apply(this, deletedRanges))
     .domain([0, targetLength]).range([0,width]);
     var referenceDiv = d3.select("#overview-container").append("div").attr("class", "reference").style("margin", "-6px").style("margin-left", "17px");
-    var referenceCanvas = referenceDiv.append().append("svg").attr("width", (width + 60)).attr("height", 34).append("g");
+    var referenceCanvasRaw = referenceDiv.append().append("svg").attr("width", (width + 60)).attr("height", 39);
+    var referenceCanvas = referenceCanvasRaw.append("g");
     allCanvases.push(referenceCanvas);
     referenceCanvas.append("rect")
-      .attr("fill", "black")
+      .attr("fill", "lightgray")
+      .attr("stroke", "black")
       .attr("x", 30)
       .attr("y", 12)
       .attr("width", width)
       .attr("height", 8);
+    referenceCanvas.selectAll(".cut rect").data(deletedRanges.map(function (r) {
+      var interval = {};
+      interval.start = r[0];
+      interval.end = r[1];
+      return processInterval(interval);
+    })).enter().append("rect").attr("class", "cut")
+      .attr("fill", "black")
+      .attr("x", function(d) { return scale(d.start) + 30; })
+      .attr("y", function(d) { return 0; })
+      .attr("width", function(d) { return 2; })
+      .attr("height", function(d) { return 39; });
     referenceCanvas.append("text").text(data.target.name)
     .attr("font-family", "sans-serif")
     .attr("font-size", "10px")
@@ -147,15 +208,32 @@ function loadOverview() {
     .attr("x", 30)
     .attr("y", 29);
     referenceCanvas.attr("class", "brush").call(d3.brushX().on("start brush", syncOverview));
+    referenceCanvasRaw.selectAll(".motif rect").data(data.target.motifs.map(i => processInterval(i))).enter().append("rect").attr("class", "motif")
+      .attr("fill", function (d) {
+        if (d.type == 1)
+          return "#2980B9";
+        else if (d.type == 2)
+          return "#7D3C98";
+        else
+          return "#873600";
+      })
+      .attr("stroke", "black")
+      .attr("onmousemove", function(d) { return "highlightInsertion(event, '" + d.label + "');"; })
+      .attr("onmouseout", "endHighlightInsertion(event);")
+      .attr("x", function(d) { return scale(d.start) + 30; })
+      .attr("y", 12)
+      .attr("width", function(d) { return scale(d.size)})
+      .attr("height", 8);
 
     var div = d3.select("#overview-container").selectAll(".read div").data(reads).enter().append("div").attr("class", "read").style("margin", "-6px").attr("id", function (d) { return d.name; });
     div.append("input").attr("type", "checkbox").attr("id", function (d) { return d.name + "-box"; }).attr("onclick", "updateDetail();");
-    var canvas = div.append("svg").attr("width", (width + 60)).attr("height", 34).append("g");
+    var rawCanvas = div.append("svg").attr("width", (width + 60)).attr("height", 34)
+    var canvas = rawCanvas.append("g");
     allCanvases.push(canvas);
     canvas.selectAll(".del rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "d"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("rect").attr("class", "del")
-      .attr("fill", "gray")
+      .attr("fill", "black")
       .attr("x", function(d) { return scale(d.start) + 30; })
       .attr("y", 15)
       .attr("width", function(d) { return scale(d.size)})
@@ -165,21 +243,22 @@ function loadOverview() {
       }).enter().append("rect").attr("class", "match")
       .attr("fill", function (d) {
         if (d.score == 0)
-          return "darkred";
+          return "#d73027";
         if (d.score == 1)
-          return "coral";
+          return "#fc8d59";
         if (d.score == 2)
-          return "gold";
+          return "#fee090";
         if (d.score == 3)
-          return "lawngreen";
+          return "#e0f3f8";
         if (d.score == 4)
-          return "green";
+          return "#91bfdb";
         if (d.score == 5)
-          return "darkgreen";
+          return "#4575b4";
         else {
           return "black";
         }
       })
+      .attr("stroke", "black")
       .attr("x", function(d) { return scale(d.start) + 30; })
       .attr("y", 12)
       .attr("width", function(d) { return scale(d.size)})
@@ -196,17 +275,41 @@ function loadOverview() {
       .attr("width", function(d) { return 2; })
       .attr("height", function(d) { return 34; });
 
-    canvas.selectAll(".prefix rect").data(function (read) {
+    canvas.attr("class", "brush").call(d3.brushX().on("start brush", syncOverview));
+
+    rawCanvas.selectAll(".imarker polygon").data(function (read) {
+        return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
+      }).enter().append("polygon").attr("class", "imarker")
+      .attr("fill", "lightgray")
+      .attr("stroke", "black")
+      .attr("points", function(d) { return (scale(d.start) + 26).toString() + ",3 " + (scale(d.start) + 34).toString() + ",3 " + (scale(d.start) + 30).toString() + ",21 "; });
+    rawCanvas.selectAll(".pmarker polygon").data(function (read) {
+        return read.intervals.filter(function(d) { return d.type === "p"}).map(i => processInterval(i)).filter(d => d.size > 0);
+      }).enter().append("polygon").attr("class", "pmarker")
+      .attr("fill", "lightgray")
+      .attr("stroke", "black")
+      .attr("points", function(d) { return (scale(d.start) + 25).toString() + ",3 " + (scale(d.start) + 30).toString() + ",3 " + (scale(d.start) + 30).toString() + ",21 "; });
+    rawCanvas.selectAll(".smarker polygon").data(function (read) {
+        return read.intervals.filter(function(d) { return d.type === "s"}).map(i => processInterval(i)).filter(d => d.size > 0);
+      }).enter().append("polygon").attr("class", "smarker")
+      .attr("fill", "lightgray")
+      .attr("stroke", "black")
+      .attr("points", function(d) { return (scale(d.start) + 30).toString() + ",3 " + (scale(d.start) + 35).toString() + ",3 " + (scale(d.start) + 30).toString() + ",21 "; });
+    rawCanvas.selectAll(".prefix rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "p"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("rect").attr("class", "prefix")
-      .attr("fill", "gray")
+      .attr("onmouseover", "highlightInsertion(event);")
+      .attr("onmouseout", "endHighlightInsertion(event);")
+      .attr("ondblclick", "targetSwitch(event);")
+      .attr("fill", "lightgray")
+      .attr("stroke", "black")
       .attr("x", function(d) { 
         if (scale(d.start) - scale(d.size) < 0)
           return 24;
         else
           return scale(d.start) + 30 - scale(d.size);
       })
-      .attr("y", function(d) { return 3; })
+      .attr("y", function(d) { return 2; })
       .attr("width", function(d) { 
         if (scale(d.start) - scale(d.size) < 0) 
           return scale(d.start) + 6;
@@ -214,12 +317,16 @@ function loadOverview() {
           return scale(d.size);
       })
       .attr("height", function(d) { return 8; });
-    canvas.selectAll(".suffix rect").data(function (read) {
+    rawCanvas.selectAll(".suffix rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "s"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("rect").attr("class", "suffix")
-      .attr("fill", "gray")
+      .attr("onmouseover", "highlightInsertion(event);")
+      .attr("onmouseout", "endHighlightInsertion(event);")
+      .attr("ondblclick", "targetSwitch(event);")
+      .attr("fill", "lightgray")
+      .attr("stroke", "black")
       .attr("x", function(d) { return scale(d.start) + 30 })
-      .attr("y", function(d) { return 3; })
+      .attr("y", function(d) { return 2; })
       .attr("width", function(d) { 
         if (scale(d.start) + scale(d.size) > width) {
           return width - scale(d.start) + 6;
@@ -228,52 +335,68 @@ function loadOverview() {
           return scale(d.size);
       })
       .attr("height", function(d) { return 8; });
-    canvas.selectAll(".insert rect").data(function (read) {
+    rawCanvas.selectAll(".insert rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("rect").attr("class", "insert")
-      .attr("fill", "gray")
+      .attr("onmouseover", "highlightInsertion(event);")
+      .attr("onmouseout", "endHighlightInsertion(event);")
+      .attr("ondblclick", "targetSwitch(event);")
+      .attr("fill", "lightgray")
+      .attr("stroke", "black")
       .attr("x", function(d) { return scale(d.start) + 30 - (scale(d.size)/2) })
-      .attr("y", function(d) { return 3; })
+      .attr("y", function(d) { return 2; })
       .attr("width", function(d) { return scale(d.size)})
       .attr("height", function(d) { return 8; });
-    canvas.selectAll(".imarker polygon").data(function (read) {
-        return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
-      }).enter().append("polygon").attr("class", "marker")
-      .attr("fill", "gray")
-      .attr("points", function(d) { return (scale(d.start) + 26).toString() + ",3 " + (scale(d.start) + 34).toString() + ",3 " + (scale(d.start) + 30).toString() + ",21 "; });
-    canvas.selectAll(".pmarker polygon").data(function (read) {
+    rawCanvas.selectAll(".pmarker rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "p"}).map(i => processInterval(i)).filter(d => d.size > 0);
-      }).enter().append("polygon").attr("class", "marker")
-      .attr("fill", "gray")
-      .attr("points", function(d) { return (scale(d.start) + 25).toString() + ",3 " + (scale(d.start) + 30).toString() + ",3 " + (scale(d.start) + 30).toString() + ",21 "; });
-    canvas.selectAll(".smarker polygon").data(function (read) {
+      }).enter().append("rect").attr("class", "pmarker")
+      .attr("fill", "lightgray")
+      .attr("x", function(d) { return scale(d.start) + 27.6; })
+      .attr("y", function(d) { return 9; })
+      .attr("width", function(d) { return 1.8; })
+      .attr("height", function(d) { return 2; });
+    rawCanvas.selectAll(".smarker rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "s"}).map(i => processInterval(i)).filter(d => d.size > 0);
-      }).enter().append("polygon").attr("class", "marker")
-      .attr("fill", "gray")
-      .attr("points", function(d) { return (scale(d.start) + 30).toString() + ",3 " + (scale(d.start) + 35).toString() + ",3 " + (scale(d.start) + 30).toString() + ",21 "; });
-    canvas.selectAll(".prefixcut text").data(function (read) {
+      }).enter().append("rect").attr("class", "smarker")
+      .attr("fill", "lightgray")
+      .attr("x", function(d) { return scale(d.start) + 30.6; })
+      .attr("y", function(d) { return 9; })
+      .attr("width", function(d) { return 1.7; })
+      .attr("height", function(d) { return 2; });
+    rawCanvas.selectAll(".imarker rect").data(function (read) {
+        return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
+      }).enter().append("rect").attr("class", "imarker")
+      .attr("fill", "lightgray")
+      .attr("x", function(d) { return scale(d.start) + 28.4; })
+      .attr("y", function(d) { return 9; })
+      .attr("width", function(d) { return 3.2; })
+      .attr("height", function(d) { return 2; });
+    rawCanvas.selectAll(".prefixcut text").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "p"}).map(i => processInterval(i)).filter(d => scale(d.start) - scale(d.size) < 0);
       }).enter().append("text")
       .text(function(d) {return (Math.ceil((scale(d.size) - scale(d.start))/scale(d.size)*d.size)).toString() + ".."; })
       .attr("font-family", "sans-serif")
       .attr("font-size", "10px")
-      .attr("fill", "gray")
+      .attr("fill", "#424949")
       .style("text-anchor", "right")
-      .attr("x", function(d) { return 2; })
-      .attr("y", function(d) { return 11; });
-    canvas.selectAll(".suffixcut text").data(function (read) {
+      .attr("x", function(d) { return 1; })
+      .attr("y", function(d) { return 10; });
+    rawCanvas.selectAll(".suffixcut text").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "s"}).map(i => processInterval(i)).filter(d => scale(d.start) + scale(d.size) > width);
       }).enter().append("text")
       .text(function(d) {return ".." + (Math.ceil((scale(d.start) + scale(d.size) - width)/scale(d.size)*d.size)).toString(); })
       .attr("font-family", "sans-serif")
       .attr("font-size", "10px")
-      .attr("fill", "gray")
+      .attr("fill", "#424949")
       .style("text-anchor", "right")
-      .attr("x", function(d) { return width + 36; })
-      .attr("y", function(d) { return 11; });
-    canvas.append("text").text(function (read) {
+      .attr("x", function(d) { return width + 37; })
+      .attr("y", function(d) { return 10; });
+    rawCanvas.append("text").text(function (read) {
       return read.name;
     })
+    .attr("onmouseover", "highlightInsertion(event);")
+    .attr("onmouseout", "endHighlightInsertion(event);")
+    .attr("onclick", "targetSwitch(event);")
     .attr("font-family", "sans-serif")
     .attr("font-size", "10px")
     .attr("fill", "black")
@@ -281,7 +404,6 @@ function loadOverview() {
     .attr("x", 30)
     .attr("y", 29);
 
-    canvas.attr("class", "brush").call(d3.brushX().on("start brush", syncOverview));
     d3.select("#overview-container").append("div").append("svg").attr("width", (width + 60)).attr("height", 23).append("g").call(d3.axisBottom().scale(xscale).tickFormat(d3.format('.0f'))).attr("transform", "translate(46, 3)");
   ;
 }
@@ -335,18 +457,19 @@ function renderDetail(data, target, min, max) {
   canvas.selectAll(".base rect").data(filteredData).enter().append("rect").attr("class", "base")
     .attr("fill", function(d,i) {
       if (target != null && filteredTarget[i] == d)
-        return "gray";
+        return "lightgray";
       else if (d == 1)
-        return "green";
+        return "#4daf4a";
       else if (d == 2)
-        return "darkblue";
+        return "#377eb8";
       else if (d == 3)
-        return "yellow";
+        return "#984ea3";
       else if (d == 4)
-        return "red";
+        return "#e41a1c";
       else
         return "white";
     })
+    .attr("stroke", function (d) { if (filteredData.length > (width/6)) return "none"; else return "black"; })
     .attr("x", function(d,i) { return dataScale(i) + 30; })
     .attr("y", function(d,i) {
       return 14 + 50 - yscale(Math.min(12,filteredQual[i]));
@@ -403,8 +526,9 @@ function renderDetail(data, target, min, max) {
   canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([12, 0]).range([0,50])).tickFormat(d3.format('.0f')).tickValues([0,3,6,9,12])).attr("transform", "translate(28, 14)");
 }
 
+
 var data =
-{"target": {"name": "ENSG00000111111", "length": 91, "seq": [1, 1, 4, 4, 2, 2, 3, 3, 1, 1, 4, 4, 2, 2, 3, 3, 1, 2, 4, 3, 1, 4, 2, 3, 1, 4, 3, 4, 1, 1, 4, 4, 4, 4, 4, 2, 3, 2, 3, 3, 2, 1, 4, 4, 1, 1, 1, 4, 3, 3, 4, 4, 4, 1, 4, 4, 1, 3, 2, 3, 4, 1, 4, 1, 1, 3, 2, 4, 1, 1, 1, 3, 3, 3, 4, 2, 4, 4, 2, 2, 1, 1, 4, 1, 4, 1, 2, 3, 4, 1, 3], "qual": [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12]}, "queries": [{"name": "READ1", "seq": [1, 1, 4, 4, 2, 2, 3, 3, 1, 1, 4, 4, 2, 2, 3, 3, 1, 2, 4, 3, 1, 4, 2, 3, 1, 4, 3, 4, 1, 1, 4, 4, 4, 4, 4, 2, 3, 2, 3, 3, 2, 1, 4, 4, 1, 1, 1, 4, 3, 3, 4, 4, 4, 1, 4, 4, 1, 3, 2, 3, 4, 1, 4, 1, 1, 3, 2, 4, 1, 1, 1, 3, 3, 3, 4, 2, 4, 4, 2, 2, 1, 1, 4, 1, 4, 1, 2, 3, 4, 1, 3], "qual": [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12], "intervals": [{"score": 5, "orientation": "+", "type": "m", "size": 91, "start": 0, "end": 90}]}, {"name": "READ2", "seq": [1, 1, 4, 4, 2, 2, 3, 3, 1, 1, 4, 4, 2, 2, 3, 3, 1, 2, 4, 3, 1, 4, 2, 3, 1, 4, 3, 4, 1, 1, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 2, 1, 4, 4, 1, 1, 1, 4, 3, 3, 4, 4, 4, 1, 4, 4, 1, 3, 2, 3, 4, 1, 4, 1, 1, 3, 2, 4, 1, 1, 1, 3, 3, 3, 4, 2, 4, 4, 2, 2, 1, 1, 4, 1, 4, 1, 2, 3, 4, 1, 3], "qual": [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 0, 0, 0, 0, 0, 0, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12], "intervals": [{"score": 5, "orientation": "+", "type": "m", "size": 91, "start": 0, "end": 90}]}, {"name": "READ3", "seq": [1, 1, 4, 4, 2, 2, 3, 3, 1, 1, 4, 4, 2, 2, 3, 3, 1, 2, 4, 3, 1, 4, 2, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 1, 4, 4, 1, 3, 2, 3, 4, 1, 4, 1, 1, 3, 2, 4, 1, 1, 1, 3, 3, 3, 4, 2, 4, 4, 2, 2, 1, 1, 4, 1, 4, 1, 2, 3, 4, 1, 3], "qual": [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12], "intervals": [{"score": 5, "orientation": "+", "type": "m", "size": 25, "start": 0, "end": 24}, {"score": 0, "orientation": "+", "type": "d", "size": 26, "start": 25, "end": 50}, {"score": 0, "orientation": "+", "type": "p", "size": 13, "start": 51, "end": 51, "qstart": 25, "qend": 37}, {"score": 5, "orientation": "+", "type": "m", "size": 40, "start": 51, "end": 90}]}, {"name": "READ4", "seq": [0, 0, 0, 0, 0, 0, 3, 3, 1, 1, 4, 4, 2, 2, 3, 3, 1, 2, 4, 3, 1, 4, 2, 3, 1, 4, 3, 4, 1, 1, 4, 4, 4, 4, 4, 2, 3, 2, 3, 3, 2, 1, 4, 4, 1, 1, 1, 4, 3, 3, 4, 4, 4, 1, 4, 4, 1, 3, 2, 3, 4, 1, 4, 1, 1, 3, 2, 4, 1, 1, 1, 3, 3, 3, 4, 2, 4, 4, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "qual": [0, 0, 0, 0, 0, 0, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "intervals": [{"score": 0, "orientation": "+", "type": "d", "size": 6, "start": 0, "end": 5}, {"score": 5, "orientation": "+", "type": "m", "size": 74, "start": 6, "end": 79}, {"score": 0, "orientation": "+", "type": "d", "size": 11, "start": 80, "end": 90}]}, {"name": "READ5", "seq": [0, 0, 0, 0, 0, 2, 3, 3, 2, 1, 4, 4, 2, 2, 3, 3, 1, 2, 4, 3, 1, 4, 2, 3, 1, 4, 3, 4, 1, 1, 4, 4, 4, 4, 4, 2, 3, 2, 3, 3, 2, 1, 4, 4, 1, 1, 1, 4, 3, 3, 4, 4, 4, 1, 4, 4, 1, 3, 2, 3, 4, 1, 4, 1, 1, 3, 2, 4, 1, 1, 1, 3, 3, 3, 4, 2, 4, 4, 2, 2, 1, 1, 4, 1, 4, 1, 2, 3, 4, 1, 3], "qual": [0, 0, 0, 0, 0, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12], "intervals": [{"score": 0, "orientation": "+", "type": "d", "size": 5, "start": 0, "end": 4}, {"score": 0, "orientation": "+", "type": "p", "size": 3, "start": 5, "end": 5, "qstart": 0, "qend": 2}, {"score": 5, "orientation": "+", "type": "m", "size": 43, "start": 5, "end": 47}, {"score": 0, "orientation": "+", "type": "i", "size": 22, "start": 48, "end": 48, "qstart": 46, "qend": 67}, {"score": 5, "orientation": "+", "type": "m", "size": 43, "start": 48, "end": 90}, {"score": 0, "orientation": "+", "type": "s", "size": 28, "start": 91, "end": 91, "qstart": 111, "qend": 138}]}]};
+{"target":{"name":"ENSG00000111111","length":91,"seq":[1,1,4,4,2,2,3,3,1,1,4,4,2,2,3,3,1,2,4,3,1,4,2,3,1,4,3,4,1,1,4,4,4,4,4,2,3,2,3,3,2,1,4,4,1,1,1,4,3,3,4,4,4,1,4,4,1,3,2,3,4,1,4,1,1,3,2,4,1,1,1,3,3,3,4,2,4,4,2,2,1,1,4,1,4,1,2,3,4,1,3],"qual":[12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12],"motifs":[{"type":2,"label":"motif2","start":1,"end":7},{"type":2,"label":"motif2","start":9,"end":15},{"type":3,"label":"splicesite","start":87,"end":90}]},"queries":[{"name":"READ1","seq":[1,1,4,4,2,2,3,3,1,1,4,4,2,2,3,3,1,2,4,3,1,4,2,3,1,4,3,4,1,1,4,4,4,4,4,2,3,2,3,3,2,1,4,4,1,1,1,4,3,3,4,4,4,1,4,4,1,3,2,3,4,1,4,1,1,3,2,4,1,1,1,3,3,3,4,2,4,4,2,2,1,1,4,1,4,1,2,3,4,1,3],"qual":[12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12],"intervals":[{"score":5,"orientation":"+","type":"m","size":91,"start":0,"end":90}]},{"name":"READ2","seq":[1,1,4,4,2,2,3,3,1,1,4,4,2,2,3,3,1,2,4,3,1,4,2,3,1,4,3,4,1,1,4,4,4,4,0,0,0,0,0,0,2,1,4,4,1,1,1,4,3,3,4,4,4,1,4,4,1,3,2,3,4,1,4,1,1,3,2,4,1,1,1,3,3,3,4,2,4,4,2,2,1,1,4,1,4,1,2,3,4,1,3],"qual":[12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,0,0,0,0,0,0,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12],"intervals":[{"score":5,"orientation":"+","type":"m","size":91,"start":0,"end":90}]},{"name":"READ3","seq":[1,1,4,4,2,2,3,3,1,1,4,4,2,2,3,3,1,2,4,3,1,4,2,3,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,4,1,4,4,1,3,2,3,4,1,4,1,1,3,2,4,1,1,1,3,3,3,4,2,4,4,2,2,1,1,4,1,4,1,2,3,4,1,3],"qual":[12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12],"intervals":[{"score":5,"orientation":"+","type":"m","size":25,"start":0,"end":24},{"score":0,"orientation":"+","type":"d","size":26,"start":25,"end":50},{"score":0,"orientation":"+","type":"p","size":13,"start":51,"end":51,"qstart":25,"qend":37},{"score":5,"orientation":"+","type":"m","size":40,"start":51,"end":90}]},{"name":"READ4","seq":[0,0,0,0,0,0,3,3,1,1,4,4,2,2,3,3,1,2,4,3,1,4,2,3,1,4,3,4,1,1,4,4,4,4,4,2,3,2,3,3,2,1,4,4,1,1,1,4,3,3,4,4,4,1,4,4,1,3,2,3,4,1,4,1,1,3,2,4,1,1,1,3,3,3,4,2,4,4,2,2,0,0,0,0,0,0,0,0,0,0,0],"qual":[0,0,0,0,0,0,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,0,0,0,0,0,0,0,0,0,0,0],"intervals":[{"score":0,"orientation":"+","type":"d","size":6,"start":0,"end":5},{"score":5,"orientation":"+","type":"m","size":74,"start":6,"end":79},{"score":0,"orientation":"+","type":"d","size":11,"start":80,"end":90}]},{"name":"READ5","seq":[0,0,0,0,0,2,3,3,2,1,4,4,2,2,3,3,1,2,4,3,1,4,2,3,1,4,3,4,1,1,4,4,4,4,4,2,3,2,3,3,2,1,4,4,1,1,1,4,3,3,4,4,4,1,4,4,1,3,2,3,4,1,4,1,1,3,2,4,1,1,1,3,3,3,4,2,4,4,2,2,1,1,4,1,4,1,2,3,4,1,3],"qual":[0,0,0,0,0,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12],"intervals":[{"score":0,"orientation":"+","type":"d","size":5,"start":0,"end":4},{"score":0,"orientation":"+","type":"p","size":3,"start":5,"end":5,"qstart":0,"qend":2},{"score":5,"orientation":"+","type":"m","size":43,"start":5,"end":47},{"score":0,"orientation":"+","type":"i","size":22,"start":48,"end":48,"qstart":46,"qend":67},{"score":5,"orientation":"+","type":"m","size":43,"start":48,"end":90},{"score":0,"orientation":"+","type":"s","size":28,"start":91,"end":91,"qstart":111,"qend":138}]}]}
 </script>
 </body>
 </html>
