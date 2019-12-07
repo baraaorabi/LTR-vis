@@ -2,7 +2,7 @@
 <head>
 <meta charset="utf-8">
 <style type="text/css">
-  input[type='checkbox'] {
+  input[type="checkbox"] {
     width:18px;
     margin:0px;
     margin-right:5px;
@@ -141,7 +141,7 @@ function highlightInsertion(event, tooltipText) {
     tooltip(tooltipText, event.clientX, event.clientY);
   else {
     if (event.target.nodeName == "rect") {
-      event.target.setAttribute("stroke", "#27AE60");
+      event.target.setAttribute("stroke", "gold");
     }
     else {
       event.target.setAttribute("fill", "blue");
@@ -243,17 +243,17 @@ function loadOverview() {
       }).enter().append("rect").attr("class", "match")
       .attr("fill", function (d) {
         if (d.score == 0)
-          return "#d73027";
+          return "#c72017";
         if (d.score == 1)
-          return "#fc8d59";
+          return "#b71007";
         if (d.score == 2)
-          return "#fee090";
+          return "#dc6d39";
         if (d.score == 3)
-          return "#e0f3f8";
+          return "#dec070";
         if (d.score == 4)
-          return "#91bfdb";
+          return "#81afdb";
         if (d.score == 5)
-          return "#4575b4";
+          return "#3565b4";
         else {
           return "black";
         }
@@ -359,9 +359,9 @@ function loadOverview() {
         return read.intervals.filter(function(d) { return d.type === "s"}).map(i => processInterval(i)).filter(d => d.size > 0);
       }).enter().append("rect").attr("class", "smarker")
       .attr("fill", "lightgray")
-      .attr("x", function(d) { return scale(d.start) + 30.6; })
+      .attr("x", function(d) { return scale(d.start) + 30.5; })
       .attr("y", function(d) { return 9; })
-      .attr("width", function(d) { return 1.7; })
+      .attr("width", function(d) { return 1.9; })
       .attr("height", function(d) { return 2; });
     rawCanvas.selectAll(".imarker rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "i"}).map(i => processInterval(i)).filter(d => d.size > 0);
@@ -404,7 +404,7 @@ function loadOverview() {
     .attr("x", 30)
     .attr("y", 29);
 
-    d3.select("#overview-container").append("div").append("svg").attr("width", (width + 60)).attr("height", 23).append("g").call(d3.axisBottom().scale(xscale).tickFormat(d3.format('.0f'))).attr("transform", "translate(46, 3)");
+    d3.select("#overview-container").append("div").append("svg").attr("width", (width + 60)).attr("height", 23).append("g").call(d3.axisBottom().scale(xscale).tickFormat(d3.format(".0f"))).attr("transform", "translate(46, 3)");
   ;
 }
 
@@ -413,26 +413,34 @@ function updateDetail() {
 }
 
 function loadDetail(minSelection, maxSelection) {
-    var dataRange = currentRangeFromSelection([minSelection, maxSelection]);
-    if (d3.select("#data-" + data.target.name).size() == 0) {
-        d3.select("#detail-container").append("div").attr("id", "data-" + data.target.name);
+  var dataRange = currentRangeFromSelection([minSelection, maxSelection]);
+  if (d3.select("#data-" + data.target.name).size() == 0) {
+      d3.select("#detail-container").append("div").attr("id", "data-" + data.target.name);
+  }
+  renderDetail(data.target, null, dataRange[0], dataRange[1]);
+  var boxes = [];
+  d3.selectAll("input").each(d => boxes.push(d));
+  boxes.sort(function (a,b) { return a.name.localeCompare(b.name); });
+  boxes.forEach(function(d) {
+    if (d3.select("#data-" + d.name).size() == 0) {
+      d3.select("#detail-container").append("div").attr("id", "data-" + d.name).attr("style", "margin-bottom:-10px");
     }
-    renderDetail(data.target, null, dataRange[0], dataRange[1]);
-    var boxes = [];
-    d3.selectAll("input").each(d => boxes.push(d));
-    boxes.sort(function (a,b) { return a.name.localeCompare(b.name); });
-    boxes.forEach(function(d) {
-      if (d3.select("#data-" + d.name).size() == 0) {
-        d3.select("#detail-container").append("div").attr("id", "data-" + d.name);
-      }
-      if (document.getElementById(d.name + "-box").checked) {
-        read = data.queries.find(r => r.name == d.name);
-        renderDetail(read, data.target, dataRange[0], dataRange[1]);
-      }
-      else {
-        d3.select("#data-" + d.name).select("*").remove();
-      }
+    if (document.getElementById(d.name + "-box").checked) {
+      read = data.queries.find(r => r.name == d.name);
+      renderDetail(read, data.target, dataRange[0], dataRange[1]);
+    }
+    else {
+      d3.select("#data-" + d.name).select("*").remove();
+    }
   });
+
+  if (d3.select("#detail-scale").size() == 0) {
+    d3.select("#detail-container").append("div").append("svg").attr("width", width + 65).attr("height", 20).append("g").attr("id", "detail-scale");
+  }
+  var xscale = fc.scaleDiscontinuous(d3.scaleLinear())
+      .discontinuityProvider(fc.discontinuityRange.apply(this, deletedRanges))
+      .domain(dataRange).range([0,width]);
+  d3.select("#detail-scale").call(d3.axisBottom().scale(xscale).tickFormat(d3.format(".0f"))).attr("transform", "translate(29, 0)");
 }
 
 function renderDetail(data, target, min, max) {
@@ -453,7 +461,7 @@ function renderDetail(data, target, min, max) {
   var div = d3.select("#data-" + data.name);
   div.select("*").remove();
 
-  var canvas = div.append("svg").attr("width", width + 65).attr("height", 85);
+  var canvas = div.append("svg").attr("width", width + 65).attr("height", 70);
   canvas.selectAll(".base rect").data(filteredData).enter().append("rect").attr("class", "base")
     .attr("fill", function(d,i) {
       if (target != null && filteredTarget[i] == d)
@@ -469,10 +477,15 @@ function renderDetail(data, target, min, max) {
       else
         return "white";
     })
-    .attr("stroke", function (d) { if (filteredData.length > (width/6)) return "none"; else return "black"; })
+    .attr("stroke", function (d,i) { 
+      if ((target != null && filteredTarget[i] == d) || filteredData.length > (width/6)) 
+        return "none"; 
+      else 
+        return "black"; 
+    })
     .attr("x", function(d,i) { return dataScale(i) + 30; })
     .attr("y", function(d,i) {
-      return 14 + 50 - yscale(Math.min(12,filteredQual[i]));
+      return 15 + 50 - yscale(Math.min(12,filteredQual[i]));
     })
     .attr("width", function(d,i) { return dataScale(i+1) - dataScale(i)})
     .attr("height", function(d,i) {
@@ -480,10 +493,10 @@ function renderDetail(data, target, min, max) {
     });
   canvas.selectAll(".cut rect").data(deletedRanges.filter(r => r[0] >= min && r[1] <= max)).enter().append("rect").attr("class", "cut")
       .attr("fill", "black")
-      .attr("x", function(d) { return xscale(d[0]) + 30 - 2; })
-      .attr("y", function(d) { return 2; })
-      .attr("width", function(d) { return 3; })
-      .attr("height", function(d) { return 75; });
+      .attr("x", function(d) { return xscale(d[0]) + 29 + dataScale(1)*xscale(d[0])/width; })
+      .attr("y", function(d) { return 0; })
+      .attr("width", function(d) { return 2; })
+      .attr("height", function(d) { return 65; });
   canvas.selectAll("text").data(filteredData).enter().append("text")
     .text(function(d,i) {
       if (filteredData.length > (width/6))
@@ -510,8 +523,8 @@ function renderDetail(data, target, min, max) {
     .attr("font-size", "10px")
     .attr("fill", "black")
     .style("text-anchor", "left")
-    .attr("x", 30)
-    .attr("y", 61);
+    .attr("x", 31)
+    .attr("y", 62);
   var bbox = text.node().getBBox();
   canvas.append("rect")
     .attr("x", bbox.x)
@@ -522,8 +535,39 @@ function renderDetail(data, target, min, max) {
     .style("fill", "#fff");
   text.raise();
 
-  canvas.append("g").call(d3.axisBottom().scale(xscale).tickFormat(d3.format('.0f'))).attr("transform", "translate(30, 65)");
-  canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([12, 0]).range([0,50])).tickFormat(d3.format('.0f')).tickValues([0,3,6,9,12])).attr("transform", "translate(28, 14)");
+  var mouseG = canvas.append("g")
+    .attr("class", "mouse-over-effects");
+  mouseG.append("path") 
+    .attr("class", "mouse-line")
+    .style("stroke", "gold")
+    .style("stroke-width", "1px")
+    .style("opacity", "0");
+  mouseG.append("rect") 
+    .attr("width", width) 
+    .attr("height", 65)
+    .attr("x", 30)
+    .attr("y", 0)
+    .attr("fill", "none")
+    .attr("pointer-events", "all")
+    .on("mouseout", function() { 
+      d3.selectAll(".mouse-line")
+        .style("opacity", "0");
+    })
+    .on("mouseover", function() { 
+        d3.selectAll(".mouse-line")
+        .style("opacity", "1");
+    })
+    .on("mousemove", function() {
+      var mouse = d3.mouse(this);
+      d3.selectAll(".mouse-line")
+        .attr("d", function() {
+          var d = "M" + mouse[0] + "," + 65;
+          d += " " + mouse[0] + "," + 0;
+          return d;
+        });
+    });
+
+  canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([12, 0]).range([0,50])).tickFormat(d3.format(".0f")).tickValues([0,3,6,9,12])).attr("transform", "translate(29, 15)");
 }
 
 
