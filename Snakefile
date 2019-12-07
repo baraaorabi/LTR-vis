@@ -18,13 +18,14 @@ rule all:
         expand('{}/{{species}}.{{ref_type}}'.format(download_d), ref_type=config['reference'], species=species),
         expand('{}/{{sample}}.fastq'.format(download_d), sample=config['samples']),
         expand('{}/{{sample}}.{{species}}.{{acids}}.paf'.format(download_d), sample=config['samples'], species=species, acids=['cdna']),
-        expand('{}/gene.fasta'.format(working_d), gene=config['genes'], species=species),
+        expand('{}/gene.fastq'.format(working_d), gene=config['genes'], species=species),
         expand('{}/gene.on-motifs.tsv'.format(working_d), gene=config['genes'], species=species),
         expand('{}/{{sample}}.reads.fastq'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads.aln.tsv'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads-to-gene.paf'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads-to-gene.json'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads-to-gene.html'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
+        expand('{}/{{sample}}.reads.targets.done'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
 
 rule download_ref:
     output:
@@ -38,7 +39,7 @@ rule download_ref:
         'conda.env'
     shell:
         'wget {params.url} -O {output}.gz;'
-        '  gunzip -c {output}.gz > {output};'
+        '  zcat {output}.gz > {output};'
         '  chmod -w {output};'
         '  rm {output}.gz'
 
@@ -79,14 +80,14 @@ rule gene:
         gtf    = '{}/{{species}}.gtf'.format(download_d),
         genome = '{}/{{species}}.dna.fasta'.format(download_d),
     output:
-        gene  = '{}/gene.fasta'.format(working_d),
+        gene  = '{}/gene.fastq'.format(working_d),
     wildcard_constraints:
         gene='|'.join(config['genes']),
         species='|'.join(species),
     conda:
         'conda.env'
     shell:
-        '{input.script} -g {wildcards.gene}  -ar {input.gtf} -gr {input.genome} -go {output.gene}'
+        '{input.script} -g {wildcards.gene} -ar {input.gtf} -gr {input.genome} -go {output.gene}'
 
 rule gene_reads:
     input:
@@ -108,10 +109,40 @@ rule gene_reads:
         '  -p {input.paf} -r {input.reads}'
         '  -ro {output.reads} -ao {output.alns} '
 
+rule gene_targets:
+    input:
+        reads = '{}/{{sample}}.reads.fastq'.format(working_d),
+    output:
+        targets_done ='{}/{{sample}}.reads.targets.done'.format(working_d),
+    params:
+        prefix ='{}/{{sample}}.read'.format(working_d),
+    wildcard_constraints:
+        sample='|'.join(config['samples']),
+        gene='|'.join(config['genes']),
+        species='|'.join(species),
+    run:
+        outpath = '{}.{{}}.fasta'.format(params.prefix)
+        rids = list()
+        print(outpath)
+        for idx,line in enumerate(open(input.reads)):
+            line = line.rstrip()
+            if idx%4 == 0:
+                rid = line[1:]
+            elif idx%4 == 1:
+                seq = line
+            elif idx%4 == 2:
+                rids.append(rid)
+                outfile = open(outpath.format(rid),'w+')
+                print('>{}'.format(rid), file=outfile)
+                print('{}'.format(seq), file=outfile)
+                outfile.close()
+        open(output.targets_done, 'w+')
+
+
 rule gene_read_mapping:
     input:
         reads = '{}/{{sample}}.reads.fastq'.format(working_d),
-        gene  = '{}/gene.fasta'.format(working_d),
+        gene  = '{}/gene.fastq'.format(working_d),
     output:
         paf = '{}/{{sample}}.reads-to-gene.paf'.format(working_d),
     wildcard_constraints:
@@ -128,7 +159,7 @@ rule gene_read_mapping:
 rule target_motifs:
     input:
         script = config['exec']['motifs'],
-        gene  = '{}/gene.fasta'.format(working_d),
+        gene  = '{}/gene.fastq'.format(working_d),
         motifs  = config['motifs'],
     output:
         tsv = '{}/gene.on-motifs.tsv'.format(working_d),
@@ -144,7 +175,7 @@ rule paf_to_json:
     input:
         script  = config['exec']['paf_to_json'],
         paf     = '{}/{{sample}}.reads-to-gene.paf'.format(working_d),
-        target  = '{}/gene.fasta'.format(working_d),
+        target  = '{}/gene.fastq'.format(working_d),
         target_motifs = '{}/gene.on-motifs.tsv'.format(working_d),
         queries = '{}/{{sample}}.reads.fastq'.format(working_d),
         motifs = config['motifs'],

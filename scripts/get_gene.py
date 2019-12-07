@@ -25,7 +25,7 @@ def parse_args():
                         "--gene-out",
                         type=str,
                         required=True,
-                        help="Path to output reads FASTA file")
+                        help="Path to output reads FASTQ file")
     args = parser.parse_args()
     return args
 
@@ -101,8 +101,10 @@ def get_fasta_seq(fasta, contig, start, end, ori):
 def output_gene(outpath, ginfo):
     outfile = open(outpath, 'w')
     fields = ['id', 'name', 'seq']
-    print('>{}'.format(ginfo['id']), file=outfile)
+    print('@{}'.format(ginfo['id']), file=outfile)
     print('{}'.format(ginfo['seq']), file=outfile)
+    print('+', file=outfile)
+    print('{}'.format('K'*len(ginfo['seq'])), file=outfile)
     outfile.close()
 
 def main():
