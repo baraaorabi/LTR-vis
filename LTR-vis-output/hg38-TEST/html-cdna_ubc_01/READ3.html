@@ -16,7 +16,7 @@
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script src="https://unpkg.com/d3fc/build/d3fc.min.js"></script>
 </head>
-<body onkeydown="deleteRange(event);" onload="loadOverview();" onresize="location.reload()">
+<body onkeydown="deleteRange(event);" onload="loadOverview(true);" onresize="location.reload()">
     <div style="position: absolute; border: black 1px solid; text-align: center; background: white; font-family: sans-serif; font-size: 12px; visibility: hidden; width:60px; height:15px;" id="tooltip"></div>
     <div style="margin:auto; width:100%" id="overview-container"></div>
     <div style="margin:auto; margin-left:22px; width:100%" id="detail-container"></div>
@@ -29,6 +29,19 @@ var syncing = false;
 var lastSelection = null;
 var deletedRanges = [];
 
+function findGetParameter(parameterName) {
+    var result = null,
+        tmp = [];
+    location.search
+        .substr(1)
+        .split("&")
+        .forEach(function (item) {
+          tmp = item.split("=");
+          if (tmp[0] === parameterName) result = decodeURIComponent(tmp[1]);
+        });
+    return result;
+}
+
 function tooltip(text, x, y) {
   if (text) {
     document.getElementById("tooltip").style.left = x.toString() + "px";
@@ -40,10 +53,10 @@ function tooltip(text, x, y) {
     document.getElementById("tooltip").style.visibility = "hidden";
 }
 
-function syncOverview() {
+function syncOverview(setSelection) {
   if (syncing) return;
   syncing = true;
-  var selection = d3.event.selection;
+  var selection = setSelection || d3.event.selection;
   lastSelection = selection;
   allCanvases.forEach(b => d3.brushX().move(b, selection));
   if (selection != null && selection[1]-selection[0] > 0)
@@ -134,6 +147,9 @@ function processInterval(interval) {
   newInterval.score = interval.score;
   newInterval.type = interval.type;
   newInterval.label = interval.label;
+  newInterval.qstart = interval.qstart;
+  newInterval.qend = interval.qend;
+
   return newInterval;
 }
 
@@ -162,16 +178,14 @@ function endHighlightInsertion(event) {
   tooltip();
 }
 
-function targetSwitch(event) {
-  loadAltTarget(event.target.parentElement.parentElement.id);
+function targetSwitch(event, min, max) {
+  if (min != undefined && max != undefined)
+    window.location.href = event.target.parentElement.parentElement.id + ".html?min=" + min + "&max=" + max;
+  else
+    window.location.href = event.target.parentElement.parentElement.id + ".html";
 }
 
-function loadAltTarget(id) {
-  alert("Loading target with ID: " + id);
-}
-
-
-function loadOverview() {
+function loadOverview(initial) {
     targetLength = data.target.length
     var reads = data.queries.sort(function (a,b) { return a.name.localeCompare(b.name); });
     var length = currentLength();
@@ -308,7 +322,7 @@ function loadOverview() {
       }).enter().append("rect").attr("class", "prefix")
       .attr("onmouseover", "highlightInsertion(event);")
       .attr("onmouseout", "endHighlightInsertion(event);")
-      .attr("ondblclick", "targetSwitch(event);")
+      .attr("ondblclick", function(d) { return "targetSwitch(event," + d.qstart + ", " + d.qend + ");" })
       .attr("fill", "lightgray")
       .attr("stroke", "black")
       .attr("x", function(d) { 
@@ -330,7 +344,7 @@ function loadOverview() {
       }).enter().append("rect").attr("class", "suffix")
       .attr("onmouseover", "highlightInsertion(event);")
       .attr("onmouseout", "endHighlightInsertion(event);")
-      .attr("ondblclick", "targetSwitch(event);")
+      .attr("ondblclick", function(d) { return "targetSwitch(event," + d.qstart + ", " + d.qend + ");" })
       .attr("fill", "lightgray")
       .attr("stroke", "black")
       .attr("x", function(d) { return scale(d.start) + 30 })
@@ -348,12 +362,23 @@ function loadOverview() {
       }).enter().append("rect").attr("class", "insert")
       .attr("onmouseover", "highlightInsertion(event);")
       .attr("onmouseout", "endHighlightInsertion(event);")
-      .attr("ondblclick", "targetSwitch(event);")
+      .attr("ondblclick", function(d) { return "targetSwitch(event," + d.qstart + ", " + d.qend + ");" })
       .attr("fill", "lightgray")
       .attr("stroke", "black")
-      .attr("x", function(d) { return scale(d.start) + 30 - (scale(d.size)/2) })
+      .attr("x", function(d) { 
+        if (scale(d.start) - (scale(d.size)/2) < 0)
+          return 24;
+        else
+          return scale(d.start) + 30 - (scale(d.size)/2);
+      })
       .attr("y", function(d) { return 2; })
-      .attr("width", function(d) { return scale(d.size)})
+      .attr("width", function(d) { 
+        if (scale(d.start) + scale(d.size)/2 > width) {
+          return width - scale(d.start) + 6;
+        }
+        else
+          return scale(d.size);
+      })
       .attr("height", function(d) { return 8; });
     rawCanvas.selectAll(".pmarker rect").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "p"}).map(i => processInterval(i)).filter(d => d.size > 0);
@@ -411,8 +436,10 @@ function loadOverview() {
     .style("text-anchor", "left")
     .attr("x", 30)
     .attr("y", 29);
-
     d3.select("#overview-container").append("div").append("svg").attr("width", (width + 60)).attr("height", 23).append("g").call(d3.axisBottom().scale(xscale).tickFormat(d3.format(".0f"))).attr("transform", "translate(46, 3)");
+    if (initial && findGetParameter("min") && findGetParameter("max")) {
+      syncOverview([xscale(findGetParameter("min")) + 30, xscale(findGetParameter("max")) + 30])
+    }
   ;
 }
 
@@ -587,6 +614,7 @@ function renderDetail(data, target, min, max) {
 
   canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([12, 0]).range([0,50])).tickFormat(d3.format(".0f")).tickValues([0,3,6,9,12])).attr("transform", "translate(29, 15)");
 }
+
 
 
 var data =
