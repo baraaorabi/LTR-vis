@@ -153,15 +153,12 @@ rule per_target:
         motifs_script = config['exec']['motifs'],
         motifs  = config['motifs'],
         json_script  = config['exec']['paf_to_json'],
-        vis_script = 'vis/genevis.html',
     output:
         targets_paf_done ='{}/{{sample}}.reads.targets.paf.done'.format(working_d),
         targets_motifs_done ='{}/{{sample}}.reads.targets.motifs.done'.format(working_d),
         targets_json_done ='{}/{{sample}}.reads.targets.json.done'.format(working_d),
-        targets_vis_done ='{}/html-{{sample}}/reads.targets.vis.done'.format(working_d),
     params:
         prefix ='{}/{{sample}}.read'.format(working_d),
-        vis_prefix ='{}/html-{{sample}}/'.format(working_d),
         mapping_settings = lambda wildcards: config['mapping_settings']['read-to-gene']
     threads:
         32
@@ -171,7 +168,6 @@ rule per_target:
         target_paf_tmlpt = '{}.{{}}.paf'.format(params.prefix)
         target_motif_tmlpt = '{}.{{}}.on-motifs.tsv'.format(params.prefix)
         target_json_tmlpt = '{}.{{}}.json'.format(params.prefix)
-        target_html_tmlpt = '{}{{}}.html'.format(params.vis_prefix)
         rids = [r.rstrip() for r in open(input.targets_done)]
 
         done_file = open(output.targets_paf_done, 'w+')
@@ -214,6 +210,22 @@ rule per_target:
             assert p ==0
             print(rid, file=done_file)
         done_file.close()
+
+rule per_target_vis:
+    input:
+        vis_script = 'vis/genevis.html',
+        targets_paf_done ='{}/{{sample}}.reads.targets.paf.done'.format(working_d),
+        targets_motifs_done ='{}/{{sample}}.reads.targets.motifs.done'.format(working_d),
+        targets_json_done ='{}/{{sample}}.reads.targets.json.done'.format(working_d),
+    output:
+        targets_vis_done ='{}/html-{{sample}}/reads.targets.vis.done'.format(working_d),
+    params:
+        prefix ='{}/{{sample}}.read'.format(working_d),
+        vis_prefix ='{}/html-{{sample}}/'.format(working_d),
+    run:
+        target_html_tmlpt = '{}{{}}.html'.format(params.vis_prefix)
+        target_json_tmlpt = '{}.{{}}.json'.format(params.prefix)
+        rids = [r.rstrip() for r in open(input.targets_json_done)]
         done_file = open(output.targets_vis_done, 'w+')
         html=open(input.vis_script).readlines()
         for rid in rids:
