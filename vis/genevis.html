@@ -217,7 +217,14 @@ function loadOverview() {
         else
           return "#873600";
       })
-      .attr("stroke", "black")
+      .attr("stroke", function (d) {
+        if (d.type == 1)
+          return "#2980B9";
+        else if (d.type == 2)
+          return "#7D3C98";
+        else
+          return "#873600";
+      })
       .attr("onmousemove", function(d) { return "highlightInsertion(event, '" + d.label + "');"; })
       .attr("onmouseout", "endHighlightInsertion(event);")
       .attr("x", function(d) { return scale(d.start) + 30; })
