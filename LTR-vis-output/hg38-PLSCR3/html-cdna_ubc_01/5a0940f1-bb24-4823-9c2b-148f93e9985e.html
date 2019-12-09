@@ -53,10 +53,16 @@ function tooltip(text, x, y) {
     document.getElementById("tooltip").style.visibility = "hidden";
 }
 
-function syncOverview(setSelection) {
+function syncOverview() {
+  setOverview();
+}
+
+function setOverview(setSelection) {
   if (syncing) return;
   syncing = true;
-  var selection = setSelection || d3.event.selection;
+  var selection = setSelection
+  if (setSelection == undefined)
+   selection = d3.event.selection;
   lastSelection = selection;
   allCanvases.forEach(b => d3.brushX().move(b, selection));
   if (selection != null && selection[1]-selection[0] > 0)
@@ -438,7 +444,7 @@ function loadOverview(initial) {
     .attr("y", 29);
     d3.select("#overview-container").append("div").append("svg").attr("width", (width + 60)).attr("height", 23).append("g").call(d3.axisBottom().scale(xscale).tickFormat(d3.format(".0f"))).attr("transform", "translate(46, 3)");
     if (initial && findGetParameter("min") && findGetParameter("max")) {
-      syncOverview([xscale(findGetParameter("min")) + 30, xscale(findGetParameter("max")) + 30])
+      setOverview([xscale(findGetParameter("min")) + 30, xscale(findGetParameter("max")) + 30])
     }
   ;
 }
