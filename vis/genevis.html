@@ -380,7 +380,10 @@ function loadOverview(initial) {
       .attr("y", function(d) { return 2; })
       .attr("width", function(d) { 
         if (scale(d.start) + scale(d.size)/2 > width) {
-          return width - scale(d.start) + 6;
+          if (scale(d.start) - (scale(d.size)/2) < 0)
+            return width + 12;
+          else
+            return width - (scale(d.start) + 30 - (scale(d.size)/2)) + 6;
         }
         else
           return scale(d.size);
@@ -620,7 +623,6 @@ function renderDetail(data, target, min, max) {
 
   canvas.append("g").call(d3.axisLeft().scale(d3.scaleLinear().domain([12, 0]).range([0,50])).tickFormat(d3.format(".0f")).tickValues([0,3,6,9,12])).attr("transform", "translate(29, 15)");
 }
-
 
 
 var data =
