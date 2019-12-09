@@ -155,7 +155,7 @@ function processInterval(interval) {
   newInterval.label = interval.label;
   newInterval.qstart = interval.qstart;
   newInterval.qend = interval.qend;
-
+  newInterval.motifs = interval.motifs;
   return newInterval;
 }
 
@@ -413,6 +413,38 @@ function loadOverview(initial) {
       .attr("y", function(d) { return 9; })
       .attr("width", function(d) { return 3.2; })
       .attr("height", function(d) { return 2; });
+    rawCanvas.selectAll(".motif rect").data(function (read) {
+        return read.intervals.filter(function(d) { return d.type === "i" || d.type === "s" || d.type === "p"}).map(i => processInterval(i)).filter(d => d.size > 0).map(d => d.motifs.map(function (m) {
+            var start;
+            if (d.type == "s")
+              start = d.start + m.start;
+            else if (d.type == "i")
+              start = d.start + m.start - (d.size/2);
+            else 
+              start = d.start + m.start - d.size;
+            return [start, m.end - m.start, m.type, m.label];
+          })).flat();
+      }).enter().append("rect").attr("class", "motif")
+      .attr("fill", function (d) {
+        if (d[2] == 1)
+          return "#2980B9";
+        else if (d[2] == 2)
+          return "#7D3C98";
+        else
+          return "#873600";
+      })
+      .attr("stroke", function (d) {
+        if (d[2] == 1)
+          return "#2980B9";
+        else if (d[2] == 2)
+          return "#7D3C98";
+        else
+          return "#873600";
+      })
+      .attr("x", function(d) { return scale(d[0]) + 30; })
+      .attr("y", 2)
+      .attr("width", function(d) { return scale(d[1])})
+      .attr("height", 8);
     rawCanvas.selectAll(".prefixcut text").data(function (read) {
         return read.intervals.filter(function(d) { return d.type === "p"}).map(i => processInterval(i)).filter(d => scale(d.start) - scale(d.size) < 0);
       }).enter().append("text")
