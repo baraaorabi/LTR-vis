@@ -467,64 +467,74 @@ function renderDetail(data, target, min, max) {
   var yscale = d3.scaleLinear().domain([0, 12]).range([0,50]);
   var div = d3.select("#data-" + data.name);
   div.select("*").remove();
-
   var canvas = div.append("svg").attr("width", width + 65).attr("height", 70);
-  canvas.selectAll(".base rect").data(filteredData).enter().append("rect").attr("class", "base")
-    .attr("fill", function(d,i) {
-      if (target != null && filteredTarget[i] == d)
-        return "lightgray";
-      else if (d == 1)
-        return "#4daf4a";
-      else if (d == 2)
-        return "#377eb8";
-      else if (d == 3)
-        return "#984ea3";
-      else if (d == 4)
-        return "#e41a1c";
-      else
-        return "white";
-    })
-    .attr("stroke", function (d,i) { 
-      if ((target != null && filteredTarget[i] == d) || filteredData.length > (width/6)) 
-        return "none"; 
-      else 
-        return "black"; 
-    })
-    .attr("x", function(d,i) { return dataScale(i) + 30; })
-    .attr("y", function(d,i) {
-      return 15 + 50 - yscale(Math.min(12,filteredQual[i]));
-    })
-    .attr("width", function(d,i) { return dataScale(i+1) - dataScale(i)})
-    .attr("height", function(d,i) {
-      return yscale(Math.min(12,filteredQual[i]));
-    });
-  canvas.selectAll(".cut rect").data(deletedRanges.filter(r => r[0] >= min && r[1] <= max)).enter().append("rect").attr("class", "cut")
+  if (filteredData.length <= 2000) {
+    canvas.selectAll(".base rect").data(filteredData).enter().append("rect").attr("class", "base")
+      .attr("fill", function(d,i) {
+        if (target != null && filteredTarget[i] == d)
+          return "lightgray";
+        else if (d == 1)
+          return "#4daf4a";
+        else if (d == 2)
+          return "#377eb8";
+        else if (d == 3)
+          return "#984ea3";
+        else if (d == 4)
+          return "#e41a1c";
+        else
+          return "white";
+      })
+      .attr("stroke", function (d,i) { 
+        if ((target != null && filteredTarget[i] == d) || filteredData.length > (width/6)) 
+          return "none"; 
+        else 
+          return "black"; 
+      })
+      .attr("x", function(d,i) { return dataScale(i) + 30; })
+      .attr("y", function(d,i) {
+        return 15 + 50 - yscale(Math.min(12,filteredQual[i]));
+      })
+      .attr("width", function(d,i) { return dataScale(i+1) - dataScale(i)})
+      .attr("height", function(d,i) {
+        return yscale(Math.min(12,filteredQual[i]));
+      });
+    canvas.selectAll(".cut rect").data(deletedRanges.filter(r => r[0] >= min && r[1] <= max)).enter().append("rect").attr("class", "cut")
+        .attr("fill", "black")
+        .attr("x", function(d) { return xscale(d[0]) + 29 + dataScale(1)*xscale(d[0])/width; })
+        .attr("y", function(d) { return 0; })
+        .attr("width", function(d) { return 2; })
+        .attr("height", function(d) { return 65; });
+    canvas.selectAll("text").data(filteredData).enter().append("text")
+      .text(function(d,i) {
+        if (filteredData.length > (width/6))
+          return ""
+        if (d == 1)
+          return "A";
+        else if (d == 2)
+          return "C";
+        else if (d == 3)
+          return "G";
+        else if (d == 4)
+          return "T";
+        else
+          return "";
+      })
+      .attr("font-family", "sans-serif")
+      .attr("font-size", "10px")
       .attr("fill", "black")
-      .attr("x", function(d) { return xscale(d[0]) + 29 + dataScale(1)*xscale(d[0])/width; })
-      .attr("y", function(d) { return 0; })
-      .attr("width", function(d) { return 2; })
-      .attr("height", function(d) { return 65; });
-  canvas.selectAll("text").data(filteredData).enter().append("text")
-    .text(function(d,i) {
-      if (filteredData.length > (width/6))
-        return ""
-      if (d == 1)
-        return "A";
-      else if (d == 2)
-        return "C";
-      else if (d == 3)
-        return "G";
-      else if (d == 4)
-        return "T";
-      else
-        return "";
-    })
-    .attr("font-family", "sans-serif")
-    .attr("font-size", "10px")
-    .attr("fill", "black")
-    .style("text-anchor", "middle")
-    .attr("x", function(d,i) { return dataScale(i) + 30 + (dataScale(i + 1) - dataScale(i))/2; })
-    .attr("y", 13);
+      .style("text-anchor", "middle")
+      .attr("x", function(d,i) { return dataScale(i) + 30 + (dataScale(i + 1) - dataScale(i))/2; })
+      .attr("y", 13);
+  }
+  else {
+    var text = canvas.append("text").attr("class", "toomuch").text("Please select a smaller data range.")
+      .attr("font-family", "sans-serif")
+      .attr("font-size", "12px")
+      .attr("fill", "black")
+      .style("text-anchor", "middle")
+      .attr("x", width/2)
+      .attr("y", 40);
+  }
   var text = canvas.append("text").attr("class", "name").text(data.name)
     .attr("font-family", "sans-serif")
     .attr("font-size", "10px")
