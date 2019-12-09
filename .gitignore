@@ -1,6 +1,6 @@
 LTR-vis-output/*
 !LTR-vis-output/hg38-TEST/gene.fastq
 !LTR-vis-output/hg38-TEST/cdna_ubc_01.reads.fastq
-!LTR-vis-output/hg38-TEST/html-cdna_ubc_01/*
-!LTR-vis-output/hg38-PLSCR3/html-cdna_ubc_01/*
+!LTR-vis-output/hg38-TEST/html-cdna_ubc_01/*.html
+!LTR-vis-output/hg38-PLSCR3/html-cdna_ubc_01/*.html
 .snakemake/
