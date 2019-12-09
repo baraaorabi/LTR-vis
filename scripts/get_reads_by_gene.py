@@ -96,7 +96,7 @@ def get_gene_info(gtf_path, gene_name):
 
 def get_read_ids_from_paf(paf, ginfo):
     read_ids = set()
-    read_alns = list()
+    read_oris = dict()
     targets = set()
     targets.add(ginfo['id'])
     for tid in ginfo['transcript_ids']:
@@ -109,26 +109,26 @@ def get_read_ids_from_paf(paf, ginfo):
             continue
         rid = line[0]
         read_ids.add(rid)
+        read_oris[rid] = line[4]
+    # for line in open(paf):
+    #     line = line.rstrip().split('\t')
+    #     rid = line[0]
+    #     if not rid in read_ids:
+    #         continue
+    #     read_alns.append(
+    #         ReadAln(
+    #             query  = rid,
+    #             qstart = int(line[2]),
+    #             qend   = int(line[3]),
+    #             ori    = line[4],
+    #             target = line[5].split('.')[0],
+    #             tstart = int(line[7]),
+    #             tend   = int(line[8]),
+    #         )
+    #     )
+    return read_ids,read_oris
 
-    for line in open(paf):
-        line = line.rstrip().split('\t')
-        rid = line[0]
-        if not rid in read_ids:
-            continue
-        read_alns.append(
-            ReadAln(
-                query  = rid,
-                qstart = int(line[2]),
-                qend   = int(line[3]),
-                ori    = line[4],
-                target = line[5].split('.')[0],
-                tstart = int(line[7]),
-                tend   = int(line[8]),
-            )
-        )
-    return read_ids,read_alns
-
-def output_reads(outpath, fastq, read_ids):
+def output_reads(outpath, fastq, read_ids, read_oris, gene_ori):
     rid_to_seq = dict()
     flag = False
     for idx,line in enumerate(open(fastq)):
@@ -145,28 +145,30 @@ def output_reads(outpath, fastq, read_ids):
 
     outfile = open(outpath,'w')
     for rid,(seq,qual) in rid_to_seq.items():
+        if read_oris[rid] == gene_ori:
+            seq = str(Seq(str(seq)).reverse_complement())
+            print(rid,read_oris[rid], gene_ori)
         print('\n'.join(['@{}'.format(rid), seq, '+', qual]), file=outfile)
     outfile.close()
 
-def output_alns_tsv(outpath, read_alns):
-    outfile = open(outpath, 'w')
-    print('\t'.join([str(f) for f in ReadAln._fields]), file=outfile)
-    for aln in read_alns:
-        print('\t'.join([str(f) for f in aln]), file=outfile)
-    outfile.close()
-
+# def output_alns_tsv(outpath, read_alns):
+#     outfile = open(outpath, 'w')
+#     print('\t'.join([str(f) for f in ReadAln._fields]), file=outfile)
+#     for aln in read_alns:
+#         print('\t'.join([str(f) for f in aln]), file=outfile)
+#     outfile.close()
 
 def main():
     args = parse_args()
     print('Getting {} gene info'.format(args.gene))
     ginfo = get_gene_info(gtf_path=args.gtf, gene_name=args.gene)
     print('Getting read alignments from {}'.format(args.paf))
-    read_ids,read_alns = get_read_ids_from_paf(paf=args.paf, ginfo=ginfo)
+    read_ids,read_oris = get_read_ids_from_paf(paf=args.paf, ginfo=ginfo)
 
     # print('Outputting read transcriptome alignments to {}'.format(args.alns_out))
     # output_alns_tsv(outpath=args.alns_out, read_alns=read_alns)
     print('Outputting reads ({}) to {}'.format(args.reads, args.reads_out))
-    output_reads(outpath=args.reads_out, fastq=args.reads, read_ids=read_ids)
+    output_reads(outpath=args.reads_out, fastq=args.reads, read_ids=read_ids, read_oris=read_oris, gene_ori=ginfo['ori'])
 
 if __name__ == "__main__":
     main()
