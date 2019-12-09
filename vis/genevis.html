@@ -16,12 +16,13 @@
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script src="https://unpkg.com/d3fc/build/d3fc.min.js"></script>
 </head>
-<body onkeydown="deleteRange(event);" onload="loadOverview();">
+<body onkeydown="deleteRange(event);" onload="loadOverview();" onresize="location.reload()">
     <div style="position: absolute; border: black 1px solid; text-align: center; background: white; font-family: sans-serif; font-size: 12px; visibility: hidden; width:60px; height:15px;" id="tooltip"></div>
     <div style="margin:auto; width:100%" id="overview-container"></div>
     <div style="margin:auto; margin-left:22px; width:100%" id="detail-container"></div>
 <script>
 var width = document.body.clientWidth - 100;
+var cutoffRange = 1500;
 var targetLength = 0;
 var allCanvases = [];
 var syncing = false;
@@ -468,7 +469,7 @@ function renderDetail(data, target, min, max) {
   var div = d3.select("#data-" + data.name);
   div.select("*").remove();
   var canvas = div.append("svg").attr("width", width + 65).attr("height", 70);
-  if (filteredData.length <= 2000) {
+  if (filteredData.length <= Math.min(width, cutoffRange)) {
     canvas.selectAll(".base rect").data(filteredData).enter().append("rect").attr("class", "base")
       .attr("fill", function(d,i) {
         if (target != null && filteredTarget[i] == d)
@@ -527,12 +528,12 @@ function renderDetail(data, target, min, max) {
       .attr("y", 13);
   }
   else {
-    var text = canvas.append("text").attr("class", "toomuch").text("Please select a smaller data range.")
+    var text = canvas.append("text").attr("class", "toomuch").text("Please select a smaller data range to view raw data.")
       .attr("font-family", "sans-serif")
       .attr("font-size", "12px")
       .attr("fill", "black")
       .style("text-anchor", "middle")
-      .attr("x", width/2)
+      .attr("x", 30 + width/2)
       .attr("y", 40);
   }
   var text = canvas.append("text").attr("class", "name").text(data.name)
