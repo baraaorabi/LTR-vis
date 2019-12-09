@@ -19,10 +19,10 @@ mapping_settings:
     motifs : -x map-ont
 
 genes:
-    E2F1   : E2F1
-    BRCA1  : BRCA1
-    BRCA2  : BRCA2
-    PLSCR3 : PLSCR3
+    # E2F1   : E2F1
+    # BRCA1  : BRCA1
+    # BRCA2  : BRCA2
+    # PLSCR3 : PLSCR3
     TEST : TEST
 
 motifs: motifs.tsv
