@@ -171,7 +171,7 @@ rule per_target:
         target_paf_tmlpt = '{}.{{}}.paf'.format(params.prefix)
         target_motif_tmlpt = '{}.{{}}.on-motifs.tsv'.format(params.prefix)
         target_json_tmlpt = '{}.{{}}.json'.format(params.prefix)
-        target_html_tmlpt = '{}.{{}}.html'.format(params.vis_prefix)
+        target_html_tmlpt = '{}{{}}.html'.format(params.vis_prefix)
         rids = [r.rstrip() for r in open(input.targets_done)]
 
         done_file = open(output.targets_paf_done, 'w+')
