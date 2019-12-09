@@ -29,7 +29,7 @@ rule all:
         expand('{}/{{sample}}.reads.targets.paf.done'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads.targets.motifs.done'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
         expand('{}/{{sample}}.reads.targets.json.done'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
-        expand('{}/{{sample}}.reads.targets.vis.done'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
+        expand('{}/html-{{sample}}/reads.targets.vis.done'.format(working_d), gene=config['genes'], sample=config['samples'], species=species),
 
 rule download_ref:
     output:
@@ -158,9 +158,10 @@ rule per_target:
         targets_paf_done ='{}/{{sample}}.reads.targets.paf.done'.format(working_d),
         targets_motifs_done ='{}/{{sample}}.reads.targets.motifs.done'.format(working_d),
         targets_json_done ='{}/{{sample}}.reads.targets.json.done'.format(working_d),
-        targets_vis_done ='{}/{{sample}}.reads.targets.vis.done'.format(working_d),
+        targets_vis_done ='{}/html-{{sample}}/reads.targets.vis.done'.format(working_d),
     params:
         prefix ='{}/{{sample}}.read'.format(working_d),
+        vis_prefix ='{}/html-{{sample}}/'.format(working_d),
         mapping_settings = lambda wildcards: config['mapping_settings']['read-to-gene']
     threads:
         32
@@ -170,7 +171,7 @@ rule per_target:
         target_paf_tmlpt = '{}.{{}}.paf'.format(params.prefix)
         target_motif_tmlpt = '{}.{{}}.on-motifs.tsv'.format(params.prefix)
         target_json_tmlpt = '{}.{{}}.json'.format(params.prefix)
-        target_html_tmlpt = '{}.{{}}.html'.format(params.prefix)
+        target_html_tmlpt = '{}.{{}}.html'.format(params.vis_prefix)
         rids = [r.rstrip() for r in open(input.targets_done)]
 
         done_file = open(output.targets_paf_done, 'w+')
