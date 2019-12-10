@@ -1,5 +1,8 @@
+
 # LTR-vis
 Long transcriptomic reads visualizer
+
+<p align="center"><img src="snapshot.PNG" alt="drawing" width="500"/></p>
 
 ## Pre-reqs
 
